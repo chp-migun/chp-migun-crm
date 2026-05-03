@@ -543,7 +543,6 @@ function promptPWAInstall(){
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <button class="nbtn" onclick="showWorkerMyHours()" style="font-size:12px">📊 הדוח שלי</button>
-      <button class="nbtn" onclick="changeOwnPassword()" style="font-size:12px">🔑 שנה סיסמה</button>
       <button class="clock-btn" id="clock-btn" onclick="workerClockInOut()">▶ התחל עבודה</button>
       <button class="nbtn" onclick="workerLogout()" style="font-size:12px">יציאה</button>
     </div>
@@ -1283,28 +1282,6 @@ function buildWorkerOptions(){
   }).join('');
 }
 
-async function changeOwnPassword(){
-  if(!currentWorker)return;
-  var newPw=prompt('סיסמה חדשה (לפחות 4 תווים):');
-  if(!newPw||newPw.length<4){toast('סיסמה קצרה מדי',true);return;}
-  var confirm=prompt('אשר סיסמה חדשה:');
-  if(newPw!==confirm){toast('הסיסמאות אינן תואמות',true);return;}
-  try{
-    await sbFetch('/rest/v1/users?id=eq.'+currentWorker.id,'PATCH',{password:newPw});
-    toast('✓ סיסמה עודכנה בהצלחה');
-  }catch(e){toast('שגיאה: '+e.message,true);}
-}
-
-async function changeWorkerPasswordAdmin(userId,currentName){
-  var newPw=prompt('סיסמה חדשה עבור '+currentName+':');
-  if(!newPw||newPw.length<4){toast('סיסמה קצרה מדי',true);return;}
-  try{
-    await sbFetch('/rest/v1/users?id=eq.'+userId,'PATCH',{password:newPw});
-    toast('✓ סיסמה עודכנה עבור '+currentName);
-    openWorkersAdmin();
-  }catch(e){toast('שגיאה: '+e.message,true);}
-}
-
 function quickChangeStatus(id,newStatus){
   const p=projects.find(x=>x.id===id);if(!p)return;
   const val=newStatus.replace(/&quot;/g,'"');
@@ -1759,8 +1736,7 @@ function openDet(id,scrollTo){
           </div>
         </div>
       </div>
-      <div style="margin-top:8px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--txt2);margin-bottom:4px">קישורים לחשבון עיסקה</div>${renderLinks(inv.links||[],p.id,'invL'+i,'invoices')}${linkAddRow(p.id,'invL'+i,'invoices')}
-          <button class="nbtn" style="font-size:11px;height:26px;margin-top:4px;color:var(--info);border-color:var(--info-border)" onclick="openGlobalDriveInput(${p.id},'invL'+${i},'invoices')">☁ העלה לDrive</button></div>
+      <div style="margin-top:8px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--txt2);margin-bottom:4px">קישורים לחשבון עיסקה</div>${renderLinks(inv.links||[],p.id,'invL'+i,'invoices')}${linkAddRow(p.id,'invL'+i,'invoices')}</div>
       <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--txt2);margin-bottom:4px">חשבוניות / קבלות (אחרי תשלום)</div>${renderLinks(inv.receiptLinks||[],p.id,'invRL'+i,'invoices')}${linkAddRow(p.id,'invRL'+i,'invoices')}</div>
     </div>`).join(''):'<div style="font-size:13px;color:var(--txt3);padding:6px 0">אין חשבונות</div>';
   const activeRems=(p.reminders||[]).filter(r=>!r.done);const doneRems=(p.reminders||[]).filter(r=>r.done);
@@ -3323,7 +3299,7 @@ async function showWorkerReport(userId,name){
       '</div>'+
     '</div>'+
     (unpaidLogs.length?
-      '<div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--danger)">⏳ שעות לתשלום ('+unpaidLogs.length+' יציאות)</div>'+
+      '<div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--danger)">שעות לתשלום ('+unpaidLogs.length+' יציאות)</div>'+
       '<div style="overflow-x:auto;max-height:220px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px">'+
         '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--bg2)">'+
           '<th style="padding:5px 8px;text-align:right;font-size:10px;color:var(--txt2)">תאריך</th>'+
@@ -3332,17 +3308,6 @@ async function showWorkerReport(userId,name){
           '<th style="padding:5px 8px;text-align:right;font-size:10px;color:var(--txt2)">שעות</th>'+
           '<th style="padding:5px 8px;text-align:right;font-size:10px;color:var(--txt2)">סכום</th>'+
         '</tr></thead><tbody>'+mkRows(unpaidLogs)+'</tbody></table></div>'
-    :'')+
-    (paidLogs.length?
-      '<div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--success)">✓ שעות ששולמו ('+paidLogs.length+' יציאות)</div>'+
-      '<div style="overflow-x:auto;max-height:180px;border:1px solid var(--success-border);border-radius:var(--r);margin-bottom:10px;opacity:0.75">'+
-        '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--success-bg)">'+
-          '<th style="padding:5px 8px;text-align:right;font-size:10px;color:var(--success)">תאריך</th>'+
-          '<th style="padding:5px 8px;text-align:right;font-size:10px;color:var(--success)">כניסה</th>'+
-          '<th style="padding:5px 8px;text-align:right;font-size:10px;color:var(--success)">יציאה</th>'+
-          '<th style="padding:5px 8px;text-align:right;font-size:10px;color:var(--success)">שעות</th>'+
-          '<th style="padding:5px 8px;text-align:right;font-size:10px;color:var(--success)">סכום</th>'+
-        '</tr></thead><tbody>'+mkRows(paidLogs)+'</tbody></table></div>'
     :'')+
     '<div style="display:flex;gap:8px;margin-top:8px">'+
       '<button class="nbtn nbtn-primary" style="font-size:12px" data-uid="'+userId+'" data-uname="'+name+'" onclick="var b=this;printWorkerReport(parseInt(b.dataset.uid),b.dataset.uname)">🖨 הדפס דוח</button>'+
