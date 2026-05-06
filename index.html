@@ -75,7 +75,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .atag-b{background:var(--info-bg);color:var(--info)}
 .aact{font-size:11px;color:var(--info);background:none;border:none;cursor:pointer;font-family:inherit;font-weight:600;margin-top:5px;padding:0}
 .aact:hover{text-decoration:underline}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.stats{display:none}
 .stat{background:var(--bg);border-radius:var(--rlg);padding:14px 16px;cursor:pointer;border:2px solid transparent;box-shadow:0 1px 3px rgba(0,0,0,0.05);transition:all 0.15s}
 .stat:hover{border-color:var(--border2);box-shadow:0 2px 8px rgba(0,0,0,0.08)}
 .stat.on{border-color:var(--info)}
@@ -633,7 +633,7 @@ function promptPWAInstall(){
 </div>
 
 <div class="filter-bar">
-  <div class="fg"><div class="fgl">לקוח</div><div class="fp" id="fp-c"></div></div>
+  <div class="fg"><div class="fgl">לקוח</div><div class="fp"><button class="pill" id="pill-client-search" onclick="openClientSearch()" style="display:flex;align-items:center;gap:6px"><span style="font-size:14px">🔍</span> סנן לפי לקוח</button><span id="active-client-filter" style="display:none;font-size:12px;color:var(--accent);margin-right:6px;cursor:pointer" onclick="clearClientFilter()">✕ <span id="active-client-name"></span></span></div></div>
   <div class="fg"><div class="fgl">סטטוס</div><div class="fp" id="fp-s"></div></div>
   <div class="fg"><div class="fgl">דחיפות</div><div class="fp" id="fp-p"></div></div>
   <div class="fg admin-fin"><div class="fgl">כספים</div><div class="fp" id="fp-f"></div></div>
@@ -944,7 +944,7 @@ let showCompleted=false;
 let sortCol='',sortDir=1,srchQ='',editId=null,alertsOpen=false,hideCompleted=true;
 
 function tF(g,v){if(g==='q'){F.q.has(v)?F.q.delete(v):(F.q.clear(),F.q.add(v));}else{F[g].has(v)?F[g].delete(v):F[g].add(v);}render();}
-function clrAll(){F.s.clear();F.p.clear();F.f.clear();F.q.clear();clrSrch();}
+function clrAll(){F.s.clear();F.p.clear();F.f.clear();F.q.clear();F.c.clear();clearClientFilter();clrSrch();showCompleted=false;var btn=document.getElementById('pill-completed');if(btn){btn.textContent='הצג שהושלמו';btn.className='pill';}}
 
 function filtered(){
   return projects.filter(p=>{
@@ -1298,6 +1298,30 @@ function startWorkerMsgPolling(){
 }
 function stopWorkerMsgPolling(){
   if(_msgCheckInterval)clearInterval(_msgCheckInterval);
+}
+
+function openClientSearch(){
+  var companies=[...new Set(projects.map(p=>p.company||p.contact||'').filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  var q=prompt('חפש לקוח:\n\n'+companies.slice(0,20).join('\n')+(companies.length>20?'\n...ועוד '+(companies.length-20)+' לקוחות':''));
+  if(q===null)return;
+  q=q.trim();
+  if(!q){clearClientFilter();return;}
+  var match=companies.find(c=>c.includes(q));
+  if(!match){toast('לקוח לא נמצא',true);return;}
+  F.c.clear();F.c.add(match);
+  document.getElementById('active-client-filter').style.display='inline-flex';
+  document.getElementById('active-client-name').textContent=match;
+  document.getElementById('pill-client-search').className='pill on';
+  render();
+}
+
+function clearClientFilter(){
+  F.c.clear();
+  var af=document.getElementById('active-client-filter');
+  if(af)af.style.display='none';
+  var pb=document.getElementById('pill-client-search');
+  if(pb)pb.className='pill';
+  render();
 }
 
 function toggleShowCompleted(){
