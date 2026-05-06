@@ -630,6 +630,7 @@ function promptPWAInstall(){
   <div class="fg"><div class="fgl">סטטוס</div><div class="fp" id="fp-s"></div></div>
   <div class="fg"><div class="fgl">דחיפות</div><div class="fp" id="fp-p"></div></div>
   <div class="fg admin-fin"><div class="fgl">כספים</div><div class="fp" id="fp-f"></div></div>
+  <div class="fg"><div class="fgl">הושלמו</div><div class="fp"><button class="pill" id="pill-completed" onclick="toggleShowCompleted()">הצג שהושלמו</button></div></div>
   <div class="fg"><div class="fgl">הצעמ"ח</div><div class="fp" id="fp-q"></div></div>
 
 </div>
@@ -932,6 +933,7 @@ async function initData(silent){
 }
 
 const F={s:new Set(),p:new Set(),f:new Set(),q:new Set(),c:new Set()};
+let showCompleted=false;
 let sortCol='',sortDir=1,srchQ='',editId=null,alertsOpen=false,hideCompleted=true;
 
 function tF(g,v){if(g==='q'){F.q.has(v)?F.q.delete(v):(F.q.clear(),F.q.add(v));}else{F[g].has(v)?F[g].delete(v):F[g].add(v);}render();}
@@ -940,6 +942,8 @@ function clrAll(){F.s.clear();F.p.clear();F.f.clear();F.q.clear();clrSrch();}
 function filtered(){
   return projects.filter(p=>{
     if(srchQ){const lq=srchQ.toLowerCase();const noteMatch=(p.notes||[]).some(n=>n.text&&n.text.toLowerCase().includes(lq));if(![p.project,p.contact,p.company,p.companyInv,p.desc,p.stage,p.phone].some(v=>v&&v.toLowerCase().includes(lq))&&!noteMatch)return false;}
+    // Hide completed unless toggled or filtering open invoices
+    if(p.completed&&!showCompleted&&!F.f.has('open'))return false;
     if(F.s.size){
       const st=p.status&&STATUSES.includes(p.status)?p.status:'בהמתנה לעבודה';
       if(!F.s.has(st))return false;
@@ -1078,7 +1082,7 @@ function renderTable(){
       <td class="admin-fin"><div class="pdots">${dots}</div></td>
       <td>${remSum(p)}</td>
 
-      <td><div style="display:flex;align-items:center;gap:3px"><button class="ibtn" onclick="openDet(${p.id})" title="פרטים">ⓘ</button><button class="ibtn" onclick="openEdit(${p.id})" title="ערוך פרויקט" style="color:var(--info)">✎</button><button class="ibtn" onclick="deleteProj(${p.id})" title="מחק" style="color:#dc2626">✕</button></div></td>
+      <td><div style="display:flex;align-items:center;gap:3px"><button class="ibtn" onclick="openDet(${p.id})" title="פרטים">ⓘ</button><button class="ibtn" onclick="openEdit(${p.id})" title="ערוך פרויקט" style="color:var(--info)">✎</button><button class="ibtn admin-only" onclick="markProjectCompleted(${p.id})" title="${p.completed?'בטל הושלם':'סמן כהושלם'}" style="color:${p.completed?'var(--success)':'var(--txt3)'}">✓</button><button class="ibtn" onclick="deleteProj(${p.id})" title="מחק" style="color:#dc2626">✕</button></div></td>
     </tr>`;
   }).join('');syncW();
   renderMobileCards();
@@ -1273,6 +1277,24 @@ function startWorkerMsgPolling(){
 }
 function stopWorkerMsgPolling(){
   if(_msgCheckInterval)clearInterval(_msgCheckInterval);
+}
+
+function toggleShowCompleted(){
+  showCompleted=!showCompleted;
+  var btn=document.getElementById('pill-completed');
+  if(btn){btn.textContent=showCompleted?'הסתר שהושלמו':'הצג שהושלמו';btn.className=showCompleted?'pill on':'pill';}
+  render();
+}
+
+async function markProjectCompleted(id){
+  var p=projects.find(function(x){return x.id===id;});if(!p)return;
+  var done=!p.completed;
+  if(!confirm(done?'לסמן פרויקט זה כהושלם? הוא יוסתר מהרשימה הרגילה.':'לבטל סימון הושלם?'))return;
+  p.completed=done;
+  addHistory(p,done?'פרויקט סומן כהושלם':'פרויקט חזר לרשימה הפעילה','status');
+  await saveToSupabase();saveLocalCache();render();
+  toast(done?'✓ הפרויקט סומן כהושלם ויוסתר מהרשימה':'↩ הפרויקט חזר לרשימה הפעילה');
+  openDet(id);
 }
 
 function buildWorkerOptions(){
@@ -1839,6 +1861,7 @@ function openDet(id,scrollTo){
     ${renderHistory(p)}
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
       <button class="nbtn nbtn-primary" onclick="openEdit(${p.id});closeDet()">✎ ערוך פרויקט</button>
+      <button class="nbtn admin-only" onclick="markProjectCompleted(${p.id})" style="${p.completed?'background:var(--success-bg);color:var(--success);border-color:var(--success-border)':''}">${p.completed?'↩ בטל הושלם':'✓ סמן כהושלם'}</button>
       <button class="nbtn" onclick="closeDet()">סגור</button>
     </div>`;
   document.getElementById('det-ov').classList.add('open');
