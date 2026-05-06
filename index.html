@@ -948,8 +948,8 @@ function filtered(){
     // - When filtering open invoices: show completed IF they have open invoices
     var hasOpenInv=(p.invoices||[]).some(function(inv){return !inv.paid&&inv.amount>0;});
     if(F.f.has('open')){
-      // Only hide completed if they have no open invoices
-      if(p.completed&&!hasOpenInv)return false;
+      // Show only projects with open invoices (including completed ones)
+      if(!hasOpenInv)return false;
     } else if(showCompleted){
       if(!p.completed)return false;
     } else {
