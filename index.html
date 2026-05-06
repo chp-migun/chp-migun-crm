@@ -947,10 +947,9 @@ function filtered(){
     // - When showCompleted=true: show ONLY completed projects  
     // - When filtering open invoices: show completed IF they have open invoices
     var hasOpenInv=(p.invoices||[]).some(function(inv){return !inv.paid&&inv.amount>0;});
-    if(F.f.has('open')){
+    if(F.f.has('unpaid')){
       // When filtering by open invoices: show ALL projects with open invoices, including completed
       if(!hasOpenInv)return false;
-      // Don't apply completed filter here - show completed projects too if they have open invoices
     } else {
       // Normal mode: hide completed unless showCompleted is on
       if(showCompleted){
