@@ -944,14 +944,16 @@ function filtered(){
     if(srchQ){const lq=srchQ.toLowerCase();const noteMatch=(p.notes||[]).some(n=>n.text&&n.text.toLowerCase().includes(lq));if(![p.project,p.contact,p.company,p.companyInv,p.desc,p.stage,p.phone].some(v=>v&&v.toLowerCase().includes(lq))&&!noteMatch)return false;}
     // Completed logic:
     // - By default: hide completed projects
-    // - When showCompleted=true: show ONLY completed projects
-    // - Exception: if filtering by open invoices, show completed with open invoices too
+    // - When showCompleted=true: show ONLY completed projects  
+    // - When filtering open invoices: show completed IF they have open invoices
+    var hasOpenInv=(p.invoices||[]).some(function(inv){return !inv.paid&&inv.amount>0;});
     if(F.f.has('open')){
-      // Show all with open invoices regardless
+      // Only hide completed if they have no open invoices
+      if(p.completed&&!hasOpenInv)return false;
     } else if(showCompleted){
-      if(!p.completed)return false; // show only completed
+      if(!p.completed)return false;
     } else {
-      if(p.completed)return false; // hide completed
+      if(p.completed)return false;
     }
     if(F.s.size){
       const st=p.status&&STATUSES.includes(p.status)?p.status:'בהמתנה לעבודה';
