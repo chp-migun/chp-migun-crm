@@ -2,26 +2,33 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>CHP מיגון</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#ffffff;--bg2:#f8f8f7;--bg3:#f1f0ee;
-  --txt:#0f0f0f;--txt2:#6b7280;--txt3:#9ca3af;
-  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.15);
-  --info-bg:#eff6ff;--info:#1d4ed8;--info-border:#bfdbfe;
-  --success-bg:#f0fdf4;--success:#15803d;--success-border:#a7f3d0;
-  --warn-bg:#fffbeb;--warn:#b45309;--warn-border:#fde68a;
+  --bg:#ffffff;--bg2:#f9fafb;--bg3:#f3f4f6;
+  --txt:#111827;--txt2:#6b7280;--txt3:#9ca3af;
+  --border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.13);
+  --accent:#6366f1;--accent-bg:#eef2ff;--accent-light:#e0e7ff;
+  --info-bg:#eff6ff;--info:#3b82f6;--info-border:#bfdbfe;
+  --success-bg:#f0fdf4;--success:#16a34a;--success-border:#bbf7d0;
+  --warn-bg:#fffbeb;--warn:#d97706;--warn-border:#fde68a;
   --danger-bg:#fef2f2;--danger:#dc2626;--danger-border:#fecaca;
-  --mono:'Courier New',monospace;
-  --r:8px;--rlg:12px;
+  --mono:'JetBrains Mono','Courier New',monospace;
+  --r:8px;--rlg:12px;--rxl:16px;
+  --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -1px rgba(0,0,0,0.05);
 }
 @media(prefers-color-scheme:dark){
   :root{
-    --bg:#1a1a1a;--bg2:#222;--bg3:#2a2a2a;
-    --txt:#f0f0f0;--txt2:#9ca3af;--txt3:#6b7280;
-    --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.15);
+    --bg:#111827;--bg2:#1f2937;--bg3:#374151;
+    --accent:#818cf8;--accent-bg:rgba(99,102,241,0.1);--accent-light:rgba(99,102,241,0.15);
+    --txt:#f9fafb;--txt2:#9ca3af;--txt3:#6b7280;
+    --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
     --info-bg:#1e3a5f;--info:#60a5fa;--info-border:#1e40af;
     --success-bg:#14532d;--success:#4ade80;--success-border:#166534;
     --warn-bg:#451a03;--warn:#fbbf24;--warn-border:#92400e;
@@ -39,9 +46,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .nav-save{font-size:11px;color:var(--success);background:var(--success-bg);border:1px solid var(--success-border);border-radius:100px;padding:2px 10px;margin-right:8px;display:none}
 .nav-save.show{display:inline-block}
 .nav-btns{display:flex;gap:6px}
-.nbtn{height:34px;padding:0 14px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:1px solid var(--border2);background:transparent;color:var(--txt2);transition:all 0.12s}
+.nbtn{height:34px;padding:0 14px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:0.5px solid var(--border2);background:var(--bg);color:var(--txt2);transition:all .15s;letter-spacing:-0.1px}
 .nbtn:hover{background:var(--bg2);color:var(--txt)}
-.nbtn-primary{background:var(--txt);color:var(--bg);border-color:var(--txt)}
+.nbtn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 .nbtn-primary:hover{opacity:0.85;color:var(--bg)}
 .main{padding:20px;display:flex;flex-direction:column;gap:16px;max-width:1600px;margin:0 auto}
 .toast{padding:10px 16px;border-radius:var(--r);font-size:13px;display:none;font-weight:500}
@@ -89,7 +96,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .fg{display:flex;flex-direction:column;gap:6px}
 .fgl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--txt2)}
 .fp{display:flex;gap:5px;flex-wrap:wrap}
-.pill{height:30px;padding:0 13px;border-radius:100px;font-size:12px;font-weight:500;font-family:inherit;cursor:pointer;border:1px solid var(--border2);background:var(--bg);color:var(--txt2);transition:all 0.12s;white-space:nowrap}
+.pill{height:30px;padding:0 14px;border-radius:100px;font-size:12px;font-weight:500;font-family:inherit;cursor:pointer;border:0.5px solid var(--border2);background:var(--bg);color:var(--txt2);transition:all .15s}
 .pill:hover{background:var(--bg2);color:var(--txt);border-color:var(--txt3)}
 .pill.on{background:var(--txt);color:var(--bg);border-color:var(--txt)}
 .pill.on-info{background:var(--info-bg);color:var(--info);border-color:var(--info-border)}
@@ -127,8 +134,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .scroll-top-inner{height:8px}
 .tbl-scroll{overflow-x:auto;overflow-y:hidden}
 table.mtbl{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed;min-width:1400px}
-table.mtbl thead{background:var(--bg2)}
-table.mtbl th{padding:10px 13px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--txt2);border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;user-select:none}
+table.mtbl thead{background:var(--bg2);border-bottom:0.5px solid var(--border2)}
+table.mtbl th{padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap}
 table.mtbl th:hover{color:var(--txt)}
 table.mtbl th.sorted{color:var(--info)}
 table.mtbl th.ns{cursor:default}
