@@ -662,8 +662,8 @@ function promptPWAInstall(){
         <th style="width:7%" onclick="sb('paid')" class="admin-fin">שולם <span id="s-pa"></span></th>
         <th style="width:7%" onclick="sb('balance')" class="admin-fin">יתרה <span id="s-b"></span></th>
         <th style="width:8%" onclick="sb('unpaid')" class="admin-fin">חע פתוחים <span id="s-u"></span></th>
-        <th style="width:5%" class="ns admin-fin">שלבים</th>
-        <th style="width:5%" class="ns">תזכ'</th>
+        
+        
         <th style="width:6%" class="ns">פעולות</th>
       </tr></thead>
       <tbody id="tbody"></tbody>
@@ -692,7 +692,8 @@ function promptPWAInstall(){
     <div class="fr full"><label>סוג פרויקט</label><input class="finp" id="fds" placeholder="מרחב מוגן, תוספת קומות..."/></div>
     <div class="fr"><label>סטטוס</label><select class="fsel" id="fst"><option value="בהמתנה לעבודה">בהמתנה לעבודה</option><option value="קנ&quot;מ 1:100">קנ"מ 1:100</option><option value="קנ&quot;מ 1:50">קנ"מ 1:50</option><option value="קונסטרוקציה">קונסטרוקציה</option><option value="השלמת טפסים">השלמת טפסים</option><option value="העלאה למערכת">העלאה למערכת</option><option value="תיקון הערות">תיקון הערות</option></select></div>
     <div class="fr"><label>דחיפות</label><select class="fsel" id="fprio"><option value="medium">בינוני</option><option value="critical">קריטי</option><option value="high">גבוה</option><option value="low">נמוך</option></select></div>
-    <div class="fr"><label>שכ"ט מוסכם (₪)</label><input class="finp" id="fam" type="number" placeholder="0"/></div>
+    <div class="fr"><label>שכ"ט מוסכם (₪)</label><input class="finp" id="fam" type="number" placeholder="0" oninput="updateVatField()"/></div>
+    <div class="fr" style="background:var(--bg2);border-radius:var(--r);padding:8px 12px;border:0.5px solid var(--border)"><label style="color:var(--txt2)">כולל מע"מ 18%</label><div id="vat-calc" style="font-weight:600;font-size:15px;color:var(--accent)">—</div></div>
     <div class="fr"><label>שולם (₪)</label><input class="finp" id="fpaid" type="number" placeholder="0"/></div>
     <div class="fr"><label>שלב</label><input class="finp" id="fstage" placeholder="אושר / בביצוע..."/></div>
     <div class="fr"><label>הצעמ"ח</label><select class="fsel" id="fqs"><option value="none">טרם נשלח</option><option value="pending">ממתין לאישור</option><option value="approved">אושר</option></select></div>
@@ -727,7 +728,7 @@ function hideEl(el){if(el)el.style.display='none';}
 const STORAGE_KEY='migencrm_v1';
 const PAY_STAGES=['קבלת הצעה','אישור הצעמ"ח','התחלת עבודה','סיום פרויקט'];
 const REM_TYPES=['תשלום חשבון עיסקה','אישור הצעמ"ח','קבלת תכניות','פגישה','מעקב לקוח','אחר'];
-const STATUSES=['בהמתנה לעבודה','קנ"מ 1:100','קנ"מ 1:50','קונסטרוקציה','השלמת טפסים','העלאה למערכת','תיקון הערות'];
+const STATUSES=['בהמתנה לעבודה','פרויקט מאושר','קנ"מ 1:100','קנ"מ 1:50','קונסטרוקציה','השלמת טפסים','העלאה למערכת','תיקון הערות'];
 const PRIOS=['critical','high','medium','low'];
 const PRIO_HE={critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'};
 const PRIO_CLS={critical:'p-critical',high:'p-high',medium:'p-medium',low:'p-low'};
@@ -1090,7 +1091,7 @@ function renderTable(){
         </select>
         <div style="margin-top:3px">${wsBadge(p.status||'בהמתנה לעבודה')}</div>
       </td>
-      <td><div style="font-weight:600;font-size:13px">${hl(p.project,q)}</div>${p.stage?`<div style="font-size:11px;color:var(--success);font-weight:600;margin-top:2px">${p.stage}</div>`:''} ${p.approvedDocs&&p.approvedDocs.length?`<div style="font-size:10px;color:var(--info);margin-top:2px">🔗 ${p.approvedDocs.length} קישורים</div>`:''}</td>
+      <td style="cursor:pointer" onclick="openDet(${p.id})"><div style="font-weight:600;font-size:13px">${hl(p.project,q)}</div>${p.desc?`<div style="font-size:11px;color:var(--txt2);margin-top:1px">${p.desc}</div>`:''} ${p.stage?`<div style="font-size:11px;color:var(--success);font-weight:600;margin-top:2px">${p.stage}</div>`:''} ${p.approvedDocs&&p.approvedDocs.length?`<div style="font-size:10px;color:var(--info);margin-top:2px">🔗 ${p.approvedDocs.length} קישורים</div>`:''}</td>
       <td><div style="font-size:13px">${hl(p.contact,q)}</div>${p.phone?`<div style="font-size:11px;color:#888">${p.phone}</div>`:''}</td>
       <td style="font-size:12px;color:#888">${hl(p.desc||'',q)}</td>
 
@@ -1100,10 +1101,10 @@ function renderTable(){
       <td class="money money-pos admin-fin">${paid?fmt(paid):'—'}</td>
       <td class="admin-fin money ${balance>0?'money-neg':balance===0&&p.amount?'money-pos':'money-muted'}">${p.amount?fmt(balance):'—'}</td>
       <td class="admin-fin">${unpaid>0?`<span class="money money-neg">${fmt(unpaid)}</span><div style="font-size:11px;color:#888">${(p.invoices||[]).filter(i=>!i.paid).length} חשבונות</div>${overdueTag(p)}`:'—'}</td>
-      <td class="admin-fin"><div class="pdots">${dots}</div></td>
-      <td>${remSum(p)}</td>
+      
+      
 
-      <td><div style="display:flex;align-items:center;gap:3px"><button class="ibtn" onclick="openDet(${p.id})" title="פרטים">ⓘ</button><button class="ibtn" onclick="openEdit(${p.id})" title="ערוך פרויקט" style="color:var(--info)">✎</button><button class="ibtn admin-only" onclick="markProjectCompleted(${p.id})" title="${p.completed?'בטל הושלם':'סמן כהושלם'}" style="color:${p.completed?'var(--success)':'var(--txt3)'}">✓</button><button class="ibtn" onclick="deleteProj(${p.id})" title="מחק" style="color:#dc2626">✕</button></div></td>
+      <td><div style="display:flex;align-items:center;gap:3px"><button class="ibtn" onclick="deleteProj(${p.id})" title="מחק פרויקט" style="color:var(--danger);font-size:14px;font-weight:700">✕</button></div></td>
     </tr>`;
   }).join('');syncW();
   renderMobileCards();
@@ -1322,6 +1323,21 @@ function clearClientFilter(){
   var pb=document.getElementById('pill-client-search');
   if(pb)pb.className='pill';
   render();
+}
+
+function updateVatField(){
+  var v=parseFloat(document.getElementById('fam')&&document.getElementById('fam').value)||0;
+  var el=document.getElementById('vat-calc');
+  if(el)el.textContent=v>0?'₪'+(v*1.18).toLocaleString('he-IL',{maximumFractionDigits:0}):'—';
+}
+
+function toggleHistory(id){
+  var el=document.getElementById('dh-content-'+id);
+  var arrow=document.getElementById('dh-arrow-'+id);
+  if(!el)return;
+  var open=el.style.display!=='none';
+  el.style.display=open?'none':'block';
+  if(arrow)arrow.style.transform=open?'':'rotate(90deg)';
 }
 
 function toggleShowCompleted(){
@@ -1902,8 +1918,11 @@ function openDet(id,scrollTo){
       <textarea id="note-ta-${p.id}" placeholder="כתוב הערה חדשה..."></textarea>
       <button class="nbtn nbtn-primary" style="align-self:flex-end;height:38px;padding:0 14px;font-size:13px" onclick="addNote(${p.id})">+ הוסף</button>
     </div>
-    <div class="dsec" id="dh-${p.id}">היסטוריית פעולות</div>
-    ${renderHistory(p)}
+    <div class="dsec" id="dh-${p.id}" onclick="toggleHistory(${p.id})" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+      <span>היסטוריית פעולות</span>
+      <span id="dh-arrow-${p.id}" style="font-size:12px;color:var(--txt3);transition:transform .2s">▶</span>
+    </div>
+    <div id="dh-content-${p.id}" style="display:none">${renderHistory(p)}</div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
       <button class="nbtn nbtn-primary" onclick="openEdit(${p.id});closeDet()">✎ ערוך פרויקט</button>
       <button class="nbtn admin-only" onclick="markProjectCompleted(${p.id})" style="${p.completed?'background:var(--success-bg);color:var(--success);border-color:var(--success-border)':''}">${p.completed?'↩ בטל הושלם':'✓ סמן כהושלם'}</button>
