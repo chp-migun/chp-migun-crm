@@ -162,8 +162,8 @@
   (if r r def))
 
 (defun c:MMD ( / *error* osm id p1 p2 p3 org u v d3 L W tmp H
-                 tN tE tS tW tC tF ops go typ p q lp lq side off w
-                 hgt sill hinge cen dia zc mid rec n dtyp)
+                 tN tE tS tW tC tF ops go typ p q lp lq side off
+                 opw hgt sill hinge cen dia zc mid rec n dtyp)
   (defun *error* (m)
     (if osm (setvar "OSMODE" osm))
     (if (and m (not (wcmatch (strcase m) "*BREAK*,*CANCEL*,*QUIT*")))
@@ -234,7 +234,7 @@
            (setq lp (mg:localize p org u v) lq (mg:localize q org u v))
            (setq side (mg:nearside lp L W))
            (setq off (min (mg:alongwall lp side) (mg:alongwall lq side)))
-           (setq w (abs (- (mg:alongwall lp side) (mg:alongwall lq side))))
+           (setq opw (abs (- (mg:alongwall lp side) (mg:alongwall lq side))))
            (setq hgt (mg:getreal-def "גובה הדלת" 200.0))
            (initget "1 2 3 4 5 7 0")
            (princ "\n  סוגי דלת: 1=דירתית 2=דלית-צירית 3=דלית-נגררת")
@@ -244,11 +244,11 @@
            (setq hinge
              (if hinge
                (if (< (abs (- (mg:alongwall (mg:localize hinge org u v) side) off))
-                      (abs (- (mg:alongwall (mg:localize hinge org u v) side) (+ off w))))
+                      (abs (- (mg:alongwall (mg:localize hinge org u v) side) (+ off opw))))
                  "A" "B") "A"))
-           (setq ops (cons (list "door" side off w hgt 0.0 hinge dtyp) ops))
-           (mg:check-door w hgt dtyp)
-           (princ (strcat "\nדלת " (rtos w 2 0) "/" (rtos hgt 2 0)
+           (setq ops (cons (list "door" side off opw hgt 0.0 hinge dtyp) ops))
+           (mg:check-door opw hgt dtyp)
+           (princ (strcat "\nדלת " (rtos opw 2 0) "/" (rtos hgt 2 0)
                           " בקיר " side " במרחק " (rtos off 2 0))))))
 
       ((= typ "Halon")
@@ -259,11 +259,11 @@
            (setq lp (mg:localize p org u v) lq (mg:localize q org u v))
            (setq side (mg:nearside lp L W))
            (setq off (min (mg:alongwall lp side) (mg:alongwall lq side)))
-           (setq w (abs (- (mg:alongwall lp side) (mg:alongwall lq side))))
+           (setq opw (abs (- (mg:alongwall lp side) (mg:alongwall lq side))))
            (setq hgt (mg:getreal-def "גובה החלון" 100.0))
            (setq sill (mg:getreal-def "גובה אדן מהרצפה" 100.0))
-           (setq ops (cons (list "win" side off w hgt sill "A") ops))
-           (princ (strcat "\nחלון " (rtos w 2 0) "/" (rtos hgt 2 0)
+           (setq ops (cons (list "win" side off opw hgt sill "A") ops))
+           (princ (strcat "\nחלון " (rtos opw 2 0) "/" (rtos hgt 2 0)
                           " בקיר " side)))))
 
       ((= typ "Tzinor")
@@ -440,7 +440,7 @@
 
 ;;; ציור תוכנית של מרחב אחד; ox,oy = ראשית הפנים
 (defun mg:plan (rec ox oy th hatch? / id L W H tt tN tE tS tW tC tF ops
-                s a b f side off w hgt hinge sh dir lw px py cx cy dia
+                s a b f side off opw hgt hinge sh dir lw px py cx cy dia
                 pts d1 d2 d3)
   (setq id (nth 0 rec) L (nth 1 rec) W (nth 2 rec) H (nth 3 rec)
         tt (nth 4 rec) tC (nth 5 rec) tF (nth 6 rec) ops (nth 7 rec))
@@ -458,7 +458,7 @@
 
   ;; פתחים
   (foreach f ops
-    (setq side (cadr f) off (caddr f) w (cadddr f) hgt (nth 4 f) hinge (nth 6 f))
+    (setq side (cadr f) off (caddr f) opw (cadddr f) hgt (nth 4 f) hinge (nth 6 f))
     ;; מסגרת מקומית של הצלע: פאה פנימית in→out
     (cond
       ((= side "S") (setq px (+ ox off) py oy       dir '(0 -1) lw tS))
@@ -468,9 +468,9 @@
     (setq d1 (if (or (= side "S") (= side "N")) '(1 0) '(0 1)))  ; לאורך הקיר
 
     (cond
-      ((= (car f) "door") (mg:dr-door px py d1 dir lw w hinge))
-      ((= (car f) "win")  (mg:dr-win  px py d1 dir lw w))
-      (T                  (mg:dr-vent px py d1 dir lw w))))
+      ((= (car f) "door") (mg:dr-door px py d1 dir lw opw hinge))
+      ((= (car f) "win")  (mg:dr-win  px py d1 dir lw opw))
+      (T                  (mg:dr-vent px py d1 dir lw opw))))
 
   ;; כיתוב מרכזי
   (mg:text "TEXT" (list (+ ox (/ L 2.0)) (+ oy (/ W 2.0) (* th 0.6))) (* th 1.5) id 1 0)
@@ -605,7 +605,7 @@
   (setq cols (mapcar '(lambda (c) (list (car c) (* (cadr c) th 0.7))) cols))
   (setq totw (apply '+ (mapcar 'cadr cols)))
   ;; כותרת
-  (mg:text "TEXT" (list (+ ox (/ totw 2.0)) (+ oy th)) (* th 1.3)
+  (mg:text "TEXT" (list (- ox (/ totw 2.0)) (+ oy th)) (* th 1.3)
            (hs "טבלת מרחבים מוגנים") 1 0)
   ;; שורת כותרות (מימין לשמאל: הטור הראשון בימין)
   (setq y oy i 0)
@@ -724,7 +724,7 @@
 
   ;; טבלה והערות מימין לנקודת הבסיס
   (setq rowh (mg:table (+ (car p0) (* 14.0 gap)) y0 th))
-  (mg:notes (+ (car p0) (* 14.0 gap)) (- y0 rowh (* 2.0 th)) th)
+  (mg:notes (+ (car p0) (* 14.0 gap)) (- y0 rowh (* 6.0 th)) th)
 
   (mapcar '(lambda (n v) (vl-catch-all-apply 'setvar (list n v))) sv vals)
   (princ (strcat "\n=== הנספח נוצר: " (itoa (length *MMD-LIST*)) " מרחבים ==="))
