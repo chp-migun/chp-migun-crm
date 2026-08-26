@@ -138,9 +138,15 @@ pre#lsp{font-family:var(--mono);font-size:11px;line-height:1.5;background:var(--
         <label>סוג</label>
         <select id="kind" onchange="onKind()"></select>
       </div>
-      <div class="f">
-        <label>מספר נפשות מתוכנן <span class="u">(לחישוב שטח נדרש)</span></label>
-        <input type="number" id="occupants" value="0" min="0" step="1">
+      <div class="grid2">
+        <div class="f">
+          <label>שטח הדירה <span class="u">מ״ר, לכלל האצבע. 0=דלג</span></label>
+          <input type="number" id="aptArea" value="0" min="0" step="1">
+        </div>
+        <div class="f">
+          <label>סוג שטח הדירה</label>
+          <select id="aptBrutto"><option value="net">רצפה (נטו)</option><option value="brutto">ברוטו</option></select>
+        </div>
       </div>
       <div id="kindnote" class="msg msg-i"></div>
     </div></details>
@@ -155,17 +161,29 @@ pre#lsp{font-family:var(--mono);font-size:11px;line-height:1.5;background:var(--
     </div></details>
 
     <details class="sec"><summary>עובי אלמנטים</summary><div class="sec-b">
+      <div class="msg msg-i" style="margin-bottom:8px">העוביים נלקחים מהתוכנית האדריכלית. הסימונים למטה משמשים רק לבדיקת סבירות מול כללי פקע״ר — התראות, לא חסימה.</div>
       <table class="walltbl">
         <tr><th></th><th>צפון</th><th>מזרח</th><th>דרום</th><th>מערב</th></tr>
-        <tr><td>קיר <span class="u">ס״מ</span></td>
+        <tr><td>עובי <span class="u">ס״מ</span></td>
           <td><input type="number" id="tN" value="25" step="1"></td>
           <td><input type="number" id="tE" value="25" step="1"></td>
           <td><input type="number" id="tS" value="25" step="1"></td>
           <td><input type="number" id="tW" value="25" step="1"></td></tr>
+        <tr><td>קיר חוץ</td>
+          <td style="text-align:center"><input type="checkbox" id="xN" checked></td>
+          <td style="text-align:center"><input type="checkbox" id="xE"></td>
+          <td style="text-align:center"><input type="checkbox" id="xS" checked></td>
+          <td style="text-align:center"><input type="checkbox" id="xW"></td></tr>
+        <tr><td>חלון נגרר</td>
+          <td style="text-align:center"><input type="checkbox" id="sN"></td>
+          <td style="text-align:center"><input type="checkbox" id="sE"></td>
+          <td style="text-align:center"><input type="checkbox" id="sS"></td>
+          <td style="text-align:center"><input type="checkbox" id="sW"></td></tr>
       </table>
-      <div class="grid2" style="margin-top:9px">
-        <div class="f"><label>תקרה <span class="u">ס״מ</span></label><input type="number" id="tCeil" value="25" step="1"></div>
-        <div class="f"><label>רצפה <span class="u">ס״מ</span></label><input type="number" id="tFloor" value="25" step="1"></div>
+      <div class="grid3" style="margin-top:9px">
+        <div class="f"><label>תקרה <span class="u">ס״מ</span></label><input type="number" id="tCeil" value="20" step="1"></div>
+        <div class="f"><label>רצפה <span class="u">ס״מ</span></label><input type="number" id="tFloor" value="15" step="1"></div>
+        <div class="f"><label>מיקום</label><select id="topFloor"><option value="mid">קומת ביניים</option><option value="top">קומה עליונה</option></select></div>
       </div>
     </div></details>
 
@@ -310,110 +328,185 @@ pre#lsp{font-family:var(--mono);font-size:11px;line-height:1.5;background:var(--
 /* ==================================================================
    RULES — מנוע הכללים
    ------------------------------------------------------------------
-   זהו המקום היחיד שצריך לערוך כדי לשנות התנהגות של הכלי.
-   כל ערך מספרי כאן הוא ברירת מחדל הניתנת לדריסה בטופס.
-   ערך שמסומן  verify:true  לא אומת מול מסמך מחייב — ראה RULES.md.
-   כל המידות בסנטימטרים אלא אם צוין אחרת.
+   המקום היחיד שעורכים כדי לשנות התנהגות. מקורות:
+     [1] אישור המשתמש בצ'אט, 26.08.2026 (סעיפים 4-11)
+     [2] הנחיית ענף הנדסה ומיגון פקע"ר, 10.06.2019
+         (reference/piquod-haoref/hanchayat-anaf-handasa-2019.pdf)
+     [3] מפרט הגנה על דלת המרחב המוגן, טבלת עזר ת"י 4422
+         (reference/piquod-haoref/tabla-dlatot-ti4422.pdf)
+   ערך עם verify:true עדיין ממתין לאימות סופי.
+   כל המידות בס"מ אלא אם צוין אחרת.
    ================================================================== */
 const RULES = {
 
-  /* --- סוגי מרחבים מוגנים --------------------------------------- */
+  /* --- סוגי מרחבים מוגנים -------------------------------------- */
   kinds: {
     MAMAD: {
-      label:'ממ״ד — מרחב מוגן דירתי', short:'ממ״ד',
-      minArea: 9.0,          // מ״ר נטו
-      minSide: 200,          // ס״מ, צלע קצרה מזערית
-      minHeight: 250,        // ס״מ, גובה פנים נטו
-      areaPerOccupant: 0,    // 0 = לא רלוונטי לסוג זה
-      wall: 25, ceiling: 25, floor: 25,
-      door: {w:80, h:200}, window:{w:100, h:100},
-      verify:true
+      label:'ממ"ד — מרחב מוגן דירתי', short:'ממ"ד',
+      minArea: 9.0,                       // [1] ס"4
+      minSide: 160, verifyMinSide:true,   // טרם אושר ע"י המשתמש
+      minHeight: 250,                     // [1] ס"11 — נטו אחרי ריצוף
+      /* עובי קיר לפי מספר קירות החוץ: אינדקס = מס' קירות חוץ [1][2] */
+      wallByExt: {0:20, 1:25, 2:25, 3:30, 4:40},
+      innerWall: 20,                      // [1] ס"5
+      ceilMid: 15, ceilTop: 20,           // [1] ס"5: תקרת ביניים/עליונה
+      doorWidths: [70, 80], doorH: 200,   // [1] ס"6, [3] שורה 1
+      winWidths: [80, 90, 100], winH: 100 // [1] ס"6
     },
     MAMAK: {
-      label:'ממ״ק — מרחב מוגן קומתי', short:'ממ״ק',
-      minArea: 12.0, minSide: 200, minHeight: 250,
-      areaPerOccupant: 0.75,
-      wall: 25, ceiling: 25, floor: 25,
-      door:{w:80, h:200}, window:{w:100, h:100},
-      verify:true
+      label:'ממ"ק — מרחב מוגן קומתי', short:'ממ"ק',
+      minArea: 10.0,                      // [1] ס"4 (כלל אצבע)
+      minSide: 160, verifyMinSide:true,
+      minHeight: 250,
+      wallByExt: {0:20, 1:30, 2:35, 3:40, 4:40},   // [2] ס"ב טבלה
+      innerWall: 20,
+      ceilMid: 15, ceilTop: 20, verifyCeil:true,   // [1] נאמר על ממ"ד; מוחל גם כאן
+      doorWidths: [85, 90, 100], doorH: 200,       // [3] שורה 5
+      winWidths: [80, 90, 100], winH: 100
     },
     MAMAM: {
-      label:'ממ״מ — מרחב מוגן מוסדי', short:'ממ״מ',
-      minArea: 12.0, minSide: 200, minHeight: 250,
-      areaPerOccupant: 1.0,
-      wall: 30, ceiling: 30, floor: 30,
-      door:{w:90, h:200}, window:{w:100, h:100},
-      verify:true
+      label:'ממ"מ — מרחב מוגן מוסדי', short:'ממ"מ',
+      minArea: 10.0,                      // [2] ס"י.5: מזערי מוסדי 10 מ"ר נטו
+      minSide: 160, verifyMinSide:true,
+      minHeight: 250,
+      wallByExt: {0:20, 1:30, 2:35, 3:40, 4:40},   // [2] ס"ב טבלה
+      innerWall: 20,
+      ceilMid: 15, ceilTop: 20, verifyCeil:true,
+      doorWidths: [85, 90, 100], doorH: 200,       // [3] שורה 5
+      winWidths: [80, 90, 100], winH: 100
     },
-    SHELTER: {
-      label:'מקלט תקני', short:'מקלט',
-      minArea: 15.0, minSide: 250, minHeight: 250,
-      areaPerOccupant: 1.0,
-      wall: 40, ceiling: 40, floor: 40,
-      door:{w:90, h:200}, window:{w:0, h:0},
-      verify:true
+    GAN: {
+      label:'ממ"מ לגן ילדים', short:'ממ"מ גן',
+      minArea: 12.0,                      // [1] ס"4: 12 מ"ר נטו לכל גן
+      minSide: 160, verifyMinSide:true,
+      minHeight: 250,
+      wallByExt: {0:20, 1:30, 2:35, 3:40, 4:40},
+      innerWall: 20,
+      ceilMid: 15, ceilTop: 20, verifyCeil:true,
+      doorWidths: [85, 90, 100], doorH: 200,
+      winWidths: [80, 90, 100], winH: 100
     }
   },
 
-  /* --- כללי אימות (ולידציה) -------------------------------------
-     כל כלל מקבל את אובייקט הנתונים ומחזיר null אם עבר,
-     או {level:'error'|'warn', msg:'...'} אם נכשל.
-     להוספת כלל חדש — הוסף פונקציה למערך. אין צורך לגעת בשום מקום אחר. */
+  /* כלל אצבע — שטח מיגון נדרש לפי שטח הדירה [1] ס"4 */
+  migunByAptArea(aptM2, brutto){
+    if (!aptM2) return 0;
+    if (brutto && aptM2 < 55) return 2.5;
+    if (aptM2 <= 100) return 4;
+    return 5;
+  },
+
+  /* עובי קיר נדרש: בסיס לפי מס' קירות חוץ; קיר עם חלון נגרר
+     לפחות 30, אך אינו מוסיף 5 ס"מ מעבר להגדלה שכבר קיימת [1][2] */
+  reqWall(kind, extCount, isExt, hasSlidingWin){
+    if (!isExt) {
+      return hasSlidingWin ? Math.max(kind.innerWall, 30) : kind.innerWall;
+    }
+    const base = kind.wallByExt[Math.min(extCount,4)];
+    return hasSlidingWin ? Math.max(base, 30) : base;
+  },
+
+  /* מרחקים מזעריים [1] ס"8, [2] ס"ו */
+  doorToPerp: 15,        // דלת ↔ קיר ניצב
+  winToPerp: 10,         // חלון ↔ קיר ניצב (וגם כיס נגרר ↔ קיר ניצב)
+  winNicheToWin: 30,     // קצה נישת גרירה ↔ פתח אור חלון שכן [2] ס"ו
+  winNoNicheGap: 100,    // בין פתחי אור ללא נישה [2] ס"ו
+  gasTankDist: 300,      // מכלי גז ↔ פתחי המרחב המוגן, 3 מ' [2] ס"ט
+
+  /* דלתות הדף — ת"י 4422 טבלת עזר [3] (מידות בס"מ) */
+  doorTypes: [
+    {id:'D1',  name:'דלת הדף דירתית',                widths:[70,80],  h:200, where:'ממ"ד'},
+    {id:'D2',  name:'דלת הדף דלית דירתית צירית',      widths:[70,80],  h:200, where:'ממ"ד', par:400, side:220},
+    {id:'D3',  name:'דלת הדף דלית דירתית נגררת',      widths:[70,80],  h:200, where:'ממ"ד', par:400, side:220},
+    {id:'D4',  name:'דלת הדף ורסיסים דירתית משופרת',  widths:[70,80],  h:200, where:'ממ"ד', par:200, side:200},
+    {id:'D5',  name:'דלת הדף מוסדית או קומתית',       widths:[85,90,100], h:200, where:'ממ"מ/ממ"ק/מוס"ח'},
+    {id:'D7',  name:'דלת הדף רסיסים 25 מ"מ',          widths:[70,80,90,100], h:200, where:'ממ"ד/ממ"ק/ממ"מ', par:110, side:100},
+    {id:'D10', name:'דלת הדף רסיסים 32 מ"מ',          widths:[70,80,90,100,110], h:200, where:'תשתיות/מרחבים מוגנים'}
+  ],
+
+  /* צנרת אוורור — עיקרי טבלת ממ"ד [2] ס"ג. הטבלה המלאה ב-RULES.md.
+     ערכים בס"מ, קטרים באינץ'. */
+  vent: {
+    MAMAD: {
+      intake:  {count:1, minD:4, maxD:8, minH:150, maxBelowCeil:25,
+                perpMin:40, perpMax:100, aboveDoor:null,  // אסור מעל דלת/חלון
+                toOpening:45, betweenPipes:40},
+      exhaust: {count:1, minD:4, maxD:8, minH:190, maxBelowCeil:35,
+                perpMin:25, perpMax:100, aboveDoor:25,
+                toOpening:25, betweenPipes:60}
+    },
+    verify:true
+  },
+
+  /* --- בדיקות. כל בדיקה: (d) → null | {level,msg} | מערך ---------- */
   checks: [
+    /* שטח */
     d => d.areaNet + 1e-9 < d.kind.minArea
-      ? {level:'error', msg:`שטח נטו ${d.areaNet.toFixed(2)} מ״ר קטן מהמזערי ${d.kind.minArea} מ״ר עבור ${d.kind.short}`}
+      ? {level:'error', msg:`שטח נטו ${d.areaNet.toFixed(2)} מ"ר קטן מהמזערי ${d.kind.minArea} מ"ר עבור ${d.kind.short}`}
       : null,
-
-    d => Math.min(d.L, d.W) < d.kind.minSide
-      ? {level:'error', msg:`הצלע הקצרה ${Math.min(d.L,d.W)} ס״מ קטנה מהמזערית ${d.kind.minSide} ס״מ`}
-      : null,
-
-    d => d.H < d.kind.minHeight
-      ? {level:'error', msg:`גובה פנים ${d.H} ס״מ קטן מהמזערי ${d.kind.minHeight} ס״מ`}
-      : null,
-
     d => {
-      const need = d.kind.areaPerOccupant * d.occupants;
+      const need = RULES.migunByAptArea(d.aptArea, d.aptBrutto);
       return (need > 0 && d.areaNet + 1e-9 < need)
-        ? {level:'error', msg:`עבור ${d.occupants} נפשות נדרשים ${need.toFixed(2)} מ״ר (${d.kind.areaPerOccupant} מ״ר/נפש); קיימים ${d.areaNet.toFixed(2)} מ״ר`}
+        ? {level:'error', msg:`לפי שטח דירה של ${d.aptArea} מ"ר נדרשים ${need} מ"ר מיגון; קיימים ${d.areaNet.toFixed(2)} מ"ר`}
         : null;
     },
-
-    d => ['N','E','S','W'].map(k => d.t[k] < d.kind.wall
-        ? {level:'warn', msg:`עובי קיר ${WALL_HE[k]} הוא ${d.t[k]} ס״מ, פחות מ־${d.kind.wall} ס״מ המקובלים ל${d.kind.short}`}
-        : null),
-
-    d => d.tCeil < d.kind.ceiling
-      ? {level:'warn', msg:`עובי תקרה ${d.tCeil} ס״מ פחות מ־${d.kind.ceiling} ס״מ`}
+    d => d.H < d.kind.minHeight
+      ? {level:'error', msg:`גובה פנים ${d.H} ס"מ קטן מ-${d.kind.minHeight} ס"מ נטו אחרי ריצוף`}
       : null,
 
-    d => d.door.w < d.kind.door.w
-      ? {level:'warn', msg:`רוחב פתח הדלת ${d.door.w} ס״מ קטן מ־${d.kind.door.w} ס״מ`}
+    /* עוביי קירות לפי קירות חוץ */
+    d => ['N','E','S','W'].map(k => {
+      const req = RULES.reqWall(d.kind, d.extCount, d.ext[k], d.slidingWin[k]);
+      return d.t[k] < req
+        ? {level:'error', msg:`קיר ${WALL_HE[k]} (${d.ext[k]?'חוץ':'פנים'}${d.slidingWin[k]?', חלון נגרר':''}): עובי ${d.t[k]} ס"מ < ${req} ס"מ הנדרשים עבור ${d.extCount} קירות חוץ`}
+        : null;
+    }),
+    d => {
+      const reqC = d.topFloor ? d.kind.ceilTop : d.kind.ceilMid;
+      return d.tCeil < reqC
+        ? {level:'error', msg:`עובי תקרה ${d.tCeil} ס"מ < ${reqC} ס"מ (${d.topFloor?'תקרה עליונה':'תקרת ביניים'})`}
+        : null;
+    },
+    d => d.extCount > 2 && d.kindKey === 'MAMAD'
+      ? {level:'warn', msg:`${d.extCount} קירות חוץ בממ"ד — מעבר ל-2 המותרים בתקנות; נדרש אישור רשות מוסמכת [2]`}
+      : null,
+    d => d.extCount > 1 && d.kindKey !== 'MAMAD'
+      ? {level:'warn', msg:`${d.extCount} קירות חוץ ב${d.kind.short} — מעבר לקיר החוץ האחד שבתקנות; נדרש אישור רשות מוסמכת [2]`}
       : null,
 
-    /* פתח חייב להיכנס בתוך אורך הקיר שעליו הוא יושב */
+    /* דלת */
+    d => !d.kind.doorWidths.includes(d.door.w)
+      ? {level:'warn', msg:`רוחב דלת ${d.door.w} ס"מ אינו מהרוחבים התקניים ל${d.kind.short}: ${d.kind.doorWidths.join('/')}`}
+      : null,
+    d => d.door.h < d.kind.doorH
+      ? {level:'warn', msg:`גובה דלת ${d.door.h} ס"מ < ${d.kind.doorH} ס"מ`}
+      : null,
+    d => d.door.swing !== 'out'
+      ? {level:'error', msg:'דלת הדף נפתחת תמיד החוצה [1] ס"7'}
+      : null,
+
+    /* פתחים בתוך הקיר + מרחקים מפינות */
     d => d.openings.map(o => {
-      const span = o.wall==='N'||o.wall==='S' ? d.L : d.W;
+      const span = (o.wall==='N'||o.wall==='S') ? d.L : d.W;
       if (o.off < 0) return {level:'error', msg:`${o.name}: מרחק מפינה שלילי`};
       if (o.off + o.w > span)
-        return {level:'error', msg:`${o.name} חורג מקיר ${WALL_HE[o.wall]}: ${o.off}+${o.w} > ${span} ס״מ`};
+        return {level:'error', msg:`${o.name} חורג מקיר ${WALL_HE[o.wall]}: ${o.off}+${o.w} > ${span} ס"מ`};
       return null;
     }),
-
-    /* מרווח מזערי בין פתח לפינה — נדרש למרחב עיגון של המשקוף */
     d => d.openings.map(o => {
-      const span = o.wall==='N'||o.wall==='S' ? d.L : d.W;
+      const span = (o.wall==='N'||o.wall==='S') ? d.L : d.W;
       const gap = Math.min(o.off, span - o.off - o.w);
-      return gap < RULES.minCornerGap && gap >= 0
-        ? {level:'warn', msg:`${o.name} במרחק ${gap} ס״מ מהפינה, פחות מ־${RULES.minCornerGap} ס״מ`}
+      const req = (o === d.door) ? RULES.doorToPerp : RULES.winToPerp;
+      return (gap >= 0 && gap < req)
+        ? {level:'error', msg:`${o.name} במרחק ${gap} ס"מ מקיר ניצב — מינימום ${req} ס"מ [1] ס"8`}
         : null;
     }),
 
-    /* שני פתחים על אותו קיר לא יחפפו */
+    /* חפיפת פתחים על אותו קיר */
     d => {
       const out = [];
       for (let i=0;i<d.openings.length;i++)
-        for (let j=i+1;j<d.openings.length;j++) {
+        for (let j=i+1;j<d.openings.length;j++){
           const a=d.openings[i], b=d.openings[j];
           if (a.wall===b.wall && a.off < b.off+b.w && b.off < a.off+a.w)
             out.push({level:'error', msg:`${a.name} ו${b.name} חופפים על קיר ${WALL_HE[a.wall]}`});
@@ -421,25 +514,30 @@ const RULES = {
       return out;
     },
 
+    /* חלון */
     d => (d.win && d.win.sill + d.win.h > d.H)
-      ? {level:'error', msg:`ראש החלון (${d.win.sill}+${d.win.h}) גבוה מגובה הפנים ${d.H} ס״מ`}
+      ? {level:'error', msg:`ראש החלון (${d.win.sill}+${d.win.h}) גבוה מגובה הפנים ${d.H} ס"מ`}
+      : null,
+    d => (d.win && !d.kind.winWidths.includes(d.win.w))
+      ? {level:'warn', msg:`רוחב חלון ${d.win.w} ס"מ אינו מהמקובלים: ${d.kind.winWidths.join('/')}`}
+      : null,
+    d => (d.door.h > d.H)
+      ? {level:'error', msg:`גובה הדלת ${d.door.h} ס"מ גדול מגובה הפנים ${d.H} ס"מ`}
       : null,
 
-    d => (d.door.h > d.H)
-      ? {level:'error', msg:`גובה הדלת ${d.door.h} ס״מ גדול מגובה הפנים ${d.H} ס״מ`}
-      : null
+    /* צינור אוורור — כללים בסיסיים [2] ס"ג */
+    d => (d.vent && d.door.wall === d.vent.wall) ? (() => {
+      const a=d.vent, b=d.door;
+      const gapPipe = (a.off > b.off+b.w) ? a.off-(b.off+b.w) : b.off-(a.off+a.w);
+      return (gapPipe >= 0 && gapPipe < 25)
+        ? {level:'warn', msg:`פתח אוורור במרחק ${gapPipe} ס"מ מהדלת — מומלץ 25+ ס"מ ואסור מעליה [2]`}
+        : null;
+    })() : null
   ],
 
-  minCornerGap: 10,     // ס״מ — מרווח מזערי בין פתח לפינת הקיר. verify
-  hatchSpacing: 8,      // ס״מ — מרווח קווי הצללת הבטון בתוכנית
-  hatchAngle: 45,       // מעלות
-  doorLeaf: 5,          // ס״מ — עובי כנף הדלת בשרטוט
-  jambTick: 1,          // ס״מ
+  hatchSpacing: 8, hatchAngle: 45, doorLeaf: 5, jambTick: 1,
 
-  /* --- שכבות ---------------------------------------------------
-     name נשמר באנגלית בכוונה: קובץ ‎.lsp‎ נקרא ב־ANSI ולא ב־UTF-8,
-     ושמות שכבות בעברית ייצאו משובשים בחלק מההתקנות.
-     color = מספר צבע ACI. lt = שם סוג קו. */
+  /* --- שכבות (ASCII בכוונה — ראה הערה בגרסה הקודמת) -------------- */
   layers: {
     wall:    {name:'WALL',    color:  7, lt:'Continuous', desc:'קווי מתאר של קירות מוגנים'},
     hatch:   {name:'HATCH',   color:  8, lt:'Continuous', desc:'הצללת בטון מזוין'},
@@ -455,19 +553,20 @@ const RULES = {
     hidden:  {name:'HIDDEN',  color:  5, lt:'HIDDEN2',    desc:'קווים נסתרים'}
   },
 
-  /* --- גדלי גיליון, מ״מ --------------------------------------- */
   sheets: { A4:[297,210], A3:[420,297], A2:[594,420], A1:[841,594] },
-  sheetMargin: 10,      // מ״מ
-  titleBlock: {w:170, h:40},  // מ״מ
+  sheetMargin: 10,
+  titleBlock: {w:170, h:40},
 
-  /* --- טקסטים ------------------------------------------------- */
   defaultNotes: [
     'הביצוע בהתאם לתקנות ההתגוננות האזרחית (מפרטים לבניית מקלטים) ולהנחיות פיקוד העורף התקפות למועד ההיתר.',
     'כל הקירות, התקרה והרצפה של המרחב המוגן מבטון מזוין יצוק באתר, ללא הפסקות יציקה בלתי מתוכננות.',
-    'אין להעביר בקירות ובתקרת המרחב המוגן צנרת או כבלים כלשהם, למעט המערכות המאושרות המסומנות בתוכנית.',
+    'מערכות האוורור והסינון יותקנו בהתאם לדרישות ת"י 4570.',
+    'אין להעביר דרך קירות המרחב המוגן צנרת שאינה משמשת את צורכי המרחב המוגן.',
+    'יותקן צינור מעבר כבילה מהממ"ד אל הדירה בהתאם להנחיות פקע"ר.',
     'דלת ההדף וחלון ההדף יהיו בעלי תו תקן ואישור פיקוד העורף, ויותקנו לפי הוראות היצרן.',
-    'מערכת הסינון והאוורור תותקן בהתאם למפרט היצרן ותימסר לאחר בדיקת תקינות.',
+    'דלת ההדף נפתחת החוצה.',
     'המידות בתוכנית הן מידות פנים נטו לאחר גמר.',
+    'גובה פנים נטו 250 ס"מ לפחות אחרי ריצוף.',
     'כל סטייה מהמסומן בנספח זה טעונה אישור מוקדם של יועץ המיגון.'
   ],
 
@@ -546,11 +645,16 @@ function collectData(){
 
   const openings = [door].concat(win?[win]:[]).concat(vent?[vent]:[]);
 
+  const ext = {N:$('xN').checked, E:$('xE').checked, S:$('xS').checked, W:$('xW').checked};
+  const slidingWin = {N:$('sN').checked, E:$('sE').checked, S:$('sS').checked, W:$('sW').checked};
   return {
-    kindKey:kk, kind, L, W, H, t,
+    kindKey:kk, kind, L, W, H, t, ext, slidingWin,
+    extCount: ['N','E','S','W'].filter(k=>ext[k]).length,
+    topFloor: $('topFloor').value === 'top',
     tCeil:num('tCeil'), tFloor:num('tFloor'),
     areaNet: (L*W)/10000,
-    occupants: num('occupants'),
+    aptArea: num('aptArea'),
+    aptBrutto: $('aptBrutto').value === 'brutto',
     door, win, vent, openings,
     scale: parseFloat($('scale').value),
     sheet: $('sheet').value,
@@ -738,7 +842,7 @@ function buildModel(d){
       ['סוג', d.kind.label],
       ['מידות פנים נטו', `${d.L} × ${d.W} ס״מ`],
       ['שטח נטו', `${d.areaNet.toFixed(2)} מ״ר`],
-      ['שטח נדרש', `${d.kind.minArea.toFixed(2)} מ״ר`],
+      ['שטח נדרש', `${Math.max(d.kind.minArea, RULES.migunByAptArea(d.aptArea,d.aptBrutto)).toFixed(2)} מ״ר`],
       ['גובה פנים נטו', `${d.H} ס״מ`],
       ['עובי קירות', `${d.t.N}/${d.t.E}/${d.t.S}/${d.t.W} ס״מ`],
       ['עובי תקרה', `${d.tCeil} ס״מ`],
@@ -746,7 +850,7 @@ function buildModel(d){
       ['דלת הדף', `${d.door.w}/${d.door.h} ס״מ — קיר ${WALL_HE[d.door.wall]}`],
       d.win  ? ['חלון הדף', `${d.win.w}/${d.win.h} ס״מ — קיר ${WALL_HE[d.win.wall]}`] : null,
       d.vent ? ['פתח אוורור', `Ø${d.vent.w} ס״מ — קיר ${WALL_HE[d.vent.wall]}`] : null,
-      d.occupants>0 ? ['נפשות מתוכנן', String(d.occupants)] : null
+      d.aptArea>0 ? ['שטח הדירה', `${d.aptArea} מ"ר (${d.aptBrutto?'ברוטו':'נטו'})`] : null
     ].filter(Boolean);
     const rh=th*1.9, split=col.x0+(col.x1-col.x0)*0.42, top=cy;
     rows.forEach((r,i)=>{
@@ -1319,19 +1423,24 @@ function showTab(t){
 function onKind(){
   const k = RULES.kinds[$('kind').value];
   $('kindnote').innerHTML =
-    `<b>${k.short}</b> — שטח מזערי ${k.minArea} מ״ר · צלע ${k.minSide} ס״מ · גובה ${k.minHeight} ס״מ`
-    + (k.areaPerOccupant ? ` · ${k.areaPerOccupant} מ״ר לנפש` : '')
-    + (k.verify ? '<br><b>ערכים אלה טרם אומתו מול מסמך מחייב — ראה RULES.md</b>' : '');
+    `<b>${k.short}</b> — שטח מזערי ${k.minArea} מ״ר · גובה ${k.minHeight} ס״מ נטו`
+    + ` · דלת ${k.doorWidths.join('/')}/${k.doorH}`
+    + `<br>עובי קיר חוץ לפי מס׳ קירות חוץ: ${[1,2,3,4].map(n=>n+'→'+k.wallByExt[n]).join(' · ')} ס״מ`;
   update();
 }
 
 function applyKindDefaults(){
   const k = RULES.kinds[$('kind').value];
-  ['N','E','S','W'].forEach(w=>$('t'+w).value=k.wall);
-  $('tCeil').value=k.ceiling; $('tFloor').value=k.floor;
-  $('dW').value=k.door.w; $('dH').value=k.door.h;
-  if (k.window.w){ $('winOn').checked=true; $('wW').value=k.window.w; $('wH').value=k.window.h; }
-  else $('winOn').checked=false;
+  const ext = {N:$('xN').checked, E:$('xE').checked, S:$('xS').checked, W:$('xW').checked};
+  const nExt = ['N','E','S','W'].filter(w=>ext[w]).length;
+  ['N','E','S','W'].forEach(w=>{
+    $('t'+w).value = RULES.reqWall(k, nExt, ext[w], $('s'+w).checked);
+  });
+  $('tCeil').value = $('topFloor').value==='top' ? k.ceilTop : k.ceilMid;
+  $('tFloor').value = k.ceilMid;
+  $('dW').value = k.doorWidths[k.doorWidths.length-1]; $('dH').value = k.doorH;
+  $('winOn').checked = true;
+  $('wW').value = k.winWidths[k.winWidths.length-1]; $('wH').value = k.winH;
 }
 
 function update(){
@@ -1340,7 +1449,7 @@ function update(){
   $('ventFields').classList.toggle('hidden', !$('ventOn').checked);
 
   /* מדדים מהירים */
-  const need = Math.max(d.kind.minArea, d.kind.areaPerOccupant*d.occupants);
+  const need = Math.max(d.kind.minArea, RULES.migunByAptArea(d.aptArea, d.aptBrutto));
   const ok = d.areaNet+1e-9 >= need;
   $('areastats').innerHTML =
     `<div class="stat"><span>שטח נטו</span><b class="${ok?'ok':'bad'}">${d.areaNet.toFixed(2)} מ״ר</b></div>`+
