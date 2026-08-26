@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>מחולל נספחי מיגון — CHP</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#ffffff;--bg2:#f9fafb;--bg3:#f3f4f6;
+  --txt:#111827;--txt2:#6b7280;--txt3:#9ca3af;
+  --border:rgba(0,0,0,0.09);--border2:rgba(0,0,0,0.15);
+  --accent:#6366f1;--accent-bg:#eef2ff;
+  --info-bg:#eff6ff;--info:#3b82f6;--info-border:#bfdbfe;
+  --success-bg:#f0fdf4;--success:#16a34a;--success-border:#bbf7d0;
+  --warn-bg:#fffbeb;--warn:#d97706;--warn-border:#fde68a;
+  --danger-bg:#fef2f2;--danger:#dc2626;--danger-border:#fecaca;
+  --mono:'JetBrains Mono','Courier New',monospace;
+  --r:8px;--rlg:12px;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#111827;--bg2:#1f2937;--bg3:#374151;
+    --txt:#f9fafb;--txt2:#9ca3af;--txt3:#6b7280;
+    --border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.15);
+    --accent:#818cf8;--accent-bg:rgba(99,102,241,.12);
+    --info-bg:#1e3a5f;--info:#60a5fa;--info-border:#1e40af;
+    --success-bg:#14532d;--success:#4ade80;--success-border:#166534;
+    --warn-bg:#451a03;--warn:#fbbf24;--warn-border:#92400e;
+    --danger-bg:#450a0a;--danger:#f87171;--danger-border:#991b1b;
+  }
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg2);color:var(--txt);direction:rtl;font-size:13px}
+
+.nav{background:var(--bg);border-bottom:1px solid var(--border);padding:0 18px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.nav-l{display:flex;align-items:center;gap:10px}
+.nav-title{font-size:15px;font-weight:700;letter-spacing:-.3px}
+.nav-sub{font-size:11.5px;color:var(--txt2)}
+.nav-sep{height:15px;width:1px;background:var(--border2);margin:0 4px}
+
+.wrap{display:grid;grid-template-columns:390px 1fr;gap:14px;padding:14px;align-items:start;max-width:1700px;margin:0 auto}
+@media(max-width:1050px){.wrap{grid-template-columns:1fr}}
+
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--rlg);box-shadow:var(--shadow-sm);overflow:hidden}
+.card-h{padding:9px 13px;border-bottom:1px solid var(--border);font-weight:650;font-size:12.5px;display:flex;align-items:center;justify-content:space-between;background:var(--bg2)}
+.card-b{padding:13px}
+
+.side{position:sticky;top:66px;max-height:calc(100vh - 80px);overflow-y:auto}
+
+details.sec{border-bottom:1px solid var(--border)}
+details.sec:last-child{border-bottom:none}
+details.sec>summary{padding:10px 13px;cursor:pointer;font-weight:650;font-size:12.5px;list-style:none;display:flex;align-items:center;gap:7px;user-select:none}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary:before{content:'▸';font-size:10px;color:var(--txt3);transition:transform .12s}
+details.sec[open]>summary:before{transform:rotate(-90deg)}
+details.sec>summary:hover{background:var(--bg2)}
+.sec-b{padding:4px 13px 13px}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.f{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+.f>label{font-size:11px;color:var(--txt2);font-weight:550}
+.f>label .u{color:var(--txt3);font-weight:400}
+input,select,textarea{width:100%;height:31px;padding:0 8px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg);color:var(--txt);font-family:inherit;font-size:12.5px;outline:none}
+textarea{height:auto;padding:7px 8px;line-height:1.5;resize:vertical}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 2.5px var(--accent-bg)}
+input[type=number]{font-family:var(--mono)}
+.chk{display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:6px;cursor:pointer}
+.chk input{width:15px;height:15px;flex:0 0 auto;accent-color:var(--accent);cursor:pointer}
+
+.btn{height:33px;padding:0 13px;border-radius:var(--r);font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;border:1px solid var(--border2);background:var(--bg);color:var(--txt);display:inline-flex;align-items:center;gap:6px;justify-content:center;transition:.1s}
+.btn:hover{background:var(--bg2)}
+.btn-p{background:var(--txt);color:var(--bg);border-color:var(--txt)}
+.btn-p:hover{opacity:.87;background:var(--txt)}
+.btn-sm{height:27px;padding:0 9px;font-size:11.5px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+.msg{padding:8px 11px;border-radius:var(--r);font-size:11.5px;line-height:1.55;margin-bottom:8px;border:1px solid}
+.msg-i{background:var(--info-bg);color:var(--info);border-color:var(--info-border)}
+.msg-w{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-border)}
+.msg-e{background:var(--danger-bg);color:var(--danger);border-color:var(--danger-border)}
+.msg-s{background:var(--success-bg);color:var(--success);border-color:var(--success-border)}
+.msg b{font-weight:700}
+
+#preview{width:100%;height:calc(100vh - 190px);min-height:460px;background:var(--bg);border-radius:var(--r);display:block;cursor:grab;touch-action:none}
+#preview.drag{cursor:grabbing}
+.pv-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pv-hint{font-size:11px;color:var(--txt3);font-family:var(--mono)}
+
+.tabs{display:flex;gap:4px}
+.tab{height:27px;padding:0 11px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;border:1px solid transparent;background:transparent;color:var(--txt2);font-family:inherit}
+.tab.on{background:var(--txt);color:var(--bg)}
+
+pre#lsp{font-family:var(--mono);font-size:11px;line-height:1.5;background:var(--bg3);padding:11px;border-radius:var(--r);overflow:auto;max-height:calc(100vh - 200px);white-space:pre;direction:ltr;text-align:left}
+
+.walltbl{width:100%;border-collapse:collapse;font-size:11.5px}
+.walltbl th{font-weight:600;color:var(--txt2);font-size:10.5px;padding:3px 4px;text-align:center}
+.walltbl td{padding:2px}
+.walltbl td:first-child{color:var(--txt2);white-space:nowrap;padding-left:6px}
+.walltbl input{height:27px;text-align:center}
+
+.stat{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--border);font-size:12px}
+.stat:last-child{border:none}
+.stat b{font-family:var(--mono);font-weight:600}
+.ok{color:var(--success)}.bad{color:var(--danger)}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <div class="nav-l">
+    <span class="nav-title">מחולל נספחי מיגון</span>
+    <span class="nav-sep"></span>
+    <span class="nav-sub">ממ״ד / ממ״ק / ממ״מ → AutoCAD</span>
+  </div>
+  <div class="nav-l">
+    <button class="btn btn-sm" onclick="loadPreset()">↺ ברירת מחדל</button>
+    <button class="btn btn-sm" onclick="saveJSON()">שמור נתונים</button>
+    <button class="btn btn-sm" onclick="document.getElementById('loadf').click()">טען</button>
+    <input type="file" id="loadf" accept=".json" class="hidden" onchange="loadJSON(this)">
+    <button class="btn btn-p btn-sm" onclick="downloadLSP()">⬇ הורד ‎.lsp</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ FORM ============ -->
+  <div class="card side">
+    <div class="card-h">
+      <span>נתוני הנספח</span>
+      <span id="areabadge" class="pv-hint"></span>
+    </div>
+
+    <details class="sec" open><summary>סוג המרחב המוגן</summary><div class="sec-b">
+      <div class="f">
+        <label>סוג</label>
+        <select id="kind" onchange="onKind()"></select>
+      </div>
+      <div class="f">
+        <label>מספר נפשות מתוכנן <span class="u">(לחישוב שטח נדרש)</span></label>
+        <input type="number" id="occupants" value="0" min="0" step="1">
+      </div>
+      <div id="kindnote" class="msg msg-i"></div>
+    </div></details>
+
+    <details class="sec" open><summary>מידות פנים נטו</summary><div class="sec-b">
+      <div class="grid3">
+        <div class="f"><label>אורך <span class="u">ס״מ</span></label><input type="number" id="L" value="300" step="1"></div>
+        <div class="f"><label>רוחב <span class="u">ס״מ</span></label><input type="number" id="W" value="300" step="1"></div>
+        <div class="f"><label>גובה <span class="u">ס״מ</span></label><input type="number" id="H" value="250" step="1"></div>
+      </div>
+      <div id="areastats"></div>
+    </div></details>
+
+    <details class="sec"><summary>עובי אלמנטים</summary><div class="sec-b">
+      <table class="walltbl">
+        <tr><th></th><th>צפון</th><th>מזרח</th><th>דרום</th><th>מערב</th></tr>
+        <tr><td>קיר <span class="u">ס״מ</span></td>
+          <td><input type="number" id="tN" value="25" step="1"></td>
+          <td><input type="number" id="tE" value="25" step="1"></td>
+          <td><input type="number" id="tS" value="25" step="1"></td>
+          <td><input type="number" id="tW" value="25" step="1"></td></tr>
+      </table>
+      <div class="grid2" style="margin-top:9px">
+        <div class="f"><label>תקרה <span class="u">ס״מ</span></label><input type="number" id="tCeil" value="25" step="1"></div>
+        <div class="f"><label>רצפה <span class="u">ס״מ</span></label><input type="number" id="tFloor" value="25" step="1"></div>
+      </div>
+    </div></details>
+
+    <details class="sec" open><summary>דלת הדף</summary><div class="sec-b">
+      <div class="grid2">
+        <div class="f"><label>רוחב פתח <span class="u">ס״מ</span></label><input type="number" id="dW" value="80" step="1"></div>
+        <div class="f"><label>גובה פתח <span class="u">ס״מ</span></label><input type="number" id="dH" value="200" step="1"></div>
+      </div>
+      <div class="grid2">
+        <div class="f"><label>קיר</label><select id="dWall"><option value="S">דרום</option><option value="N">צפון</option><option value="E">מזרח</option><option value="W">מערב</option></select></div>
+        <div class="f"><label>מרחק מפינה <span class="u">ס״מ</span></label><input type="number" id="dOff" value="40" step="1"></div>
+      </div>
+      <div class="grid2">
+        <div class="f"><label>כיוון פתיחה</label><select id="dSwing"><option value="out">החוצה (מהממ״ד)</option><option value="in">פנימה (לממ״ד)</option></select></div>
+        <div class="f"><label>יד</label><select id="dHand"><option value="R">ימין</option><option value="L">שמאל</option></select></div>
+      </div>
+    </div></details>
+
+    <details class="sec" open><summary>חלון הדף</summary><div class="sec-b">
+      <label class="chk"><input type="checkbox" id="winOn" checked> כלול חלון הדף</label>
+      <div id="winFields">
+        <div class="grid2">
+          <div class="f"><label>רוחב <span class="u">ס״מ</span></label><input type="number" id="wW" value="100" step="1"></div>
+          <div class="f"><label>גובה <span class="u">ס״מ</span></label><input type="number" id="wH" value="100" step="1"></div>
+        </div>
+        <div class="grid2">
+          <div class="f"><label>קיר</label><select id="wWall"><option value="N">צפון</option><option value="E">מזרח</option><option value="S">דרום</option><option value="W">מערב</option></select></div>
+          <div class="f"><label>מרחק מפינה <span class="u">ס״מ</span></label><input type="number" id="wOff" value="100" step="1"></div>
+        </div>
+        <div class="f"><label>גובה אדן מהרצפה <span class="u">ס״מ</span></label><input type="number" id="wSill" value="100" step="1"></div>
+      </div>
+    </div></details>
+
+    <details class="sec"><summary>אוורור וסינון</summary><div class="sec-b">
+      <label class="chk"><input type="checkbox" id="ventOn" checked> כלול פתח אוורור / יחידת סינון</label>
+      <div id="ventFields">
+        <div class="grid2">
+          <div class="f"><label>קוטר/רוחב פתח <span class="u">ס״מ</span></label><input type="number" id="vD" value="20" step="1"></div>
+          <div class="f"><label>קוטר יחידת סינון <span class="u">ס״מ</span></label><input type="number" id="vFilt" value="45" step="1"></div>
+        </div>
+        <div class="grid2">
+          <div class="f"><label>קיר</label><select id="vWall"><option value="N">צפון</option><option value="E">מזרח</option><option value="S">דרום</option><option value="W">מערב</option></select></div>
+          <div class="f"><label>מרחק מפינה <span class="u">ס״מ</span></label><input type="number" id="vOff" value="250" step="1"></div>
+        </div>
+        <div class="f"><label>גובה מרכז הפתח מהרצפה <span class="u">ס״מ</span></label><input type="number" id="vZ" value="180" step="1"></div>
+      </div>
+    </div></details>
+
+    <details class="sec"><summary>רכיבי הנספח</summary><div class="sec-b">
+      <label class="chk"><input type="checkbox" id="cPlan" checked> תוכנית ממ״ד</label>
+      <label class="chk"><input type="checkbox" id="cSect" checked> חתך א־א</label>
+      <label class="chk"><input type="checkbox" id="cTable" checked> טבלת נתונים</label>
+      <label class="chk"><input type="checkbox" id="cLegend" checked> מקרא</label>
+      <label class="chk"><input type="checkbox" id="cNotes" checked> הערות כלליות</label>
+      <label class="chk"><input type="checkbox" id="cFrame" checked> מסגרת ושדה כותרת</label>
+      <label class="chk"><input type="checkbox" id="cDims" checked> מידות</label>
+      <label class="chk"><input type="checkbox" id="cHatch" checked> הצללת בטון בקירות</label>
+      <label class="chk"><input type="checkbox" id="cNorth" checked> חץ צפון</label>
+    </div></details>
+
+    <details class="sec"><summary>הגדרות שרטוט</summary><div class="sec-b">
+      <div class="grid2">
+        <div class="f"><label>קנה מידה 1:</label><select id="scale"><option>25</option><option selected>50</option><option>100</option></select></div>
+        <div class="f"><label>גיליון</label><select id="sheet"><option>A4</option><option selected>A3</option><option>A2</option><option>A1</option></select></div>
+      </div>
+      <div class="grid2">
+        <div class="f"><label>יחידות השרטוט</label><select id="units"><option value="cm" selected>ס״מ</option><option value="mm">מ״מ</option><option value="m">מטר</option></select></div>
+        <div class="f"><label>גובה טקסט בסיס <span class="u">מ״מ בנייר</span></label><input type="number" id="txtH" value="2.5" step="0.1"></div>
+      </div>
+      <div class="f"><label>גופן טקסט</label><select id="font"><option value="arial.ttf">Arial</option><option value="david.ttf">David</option><option value="simplex.shx">Simplex (SHX)</option></select></div>
+      <div class="f"><label>קידומת שכבות</label><input type="text" id="lprefix" value="MIGUN-"></div>
+      <label class="chk"><input type="checkbox" id="realDims" checked> מידות כאובייקטי Dimension אמיתיים</label>
+      <label class="chk"><input type="checkbox" id="purge"> מחק שרטוט קיים באותן שכבות לפני ציור</label>
+    </div></details>
+
+    <details class="sec"><summary>פרטי פרויקט (שדה כותרת)</summary><div class="sec-b">
+      <div class="f"><label>שם הפרויקט</label><input type="text" id="pName" value="בניין מגורים"></div>
+      <div class="f"><label>כתובת</label><input type="text" id="pAddr" value=""></div>
+      <div class="grid2">
+        <div class="f"><label>גוש</label><input type="text" id="pGush" value=""></div>
+        <div class="f"><label>חלקה</label><input type="text" id="pHelka" value=""></div>
+      </div>
+      <div class="grid2">
+        <div class="f"><label>מס׳ תיק</label><input type="text" id="pFile" value=""></div>
+        <div class="f"><label>מס׳ נספח</label><input type="text" id="pNum" value="1"></div>
+      </div>
+      <div class="f"><label>יועץ המיגון</label><input type="text" id="pCons" value=""></div>
+      <div class="f"><label>תאריך</label><input type="text" id="pDate" value=""></div>
+      <div class="f"><label>זיהוי הממ״ד <span class="u">למשל: דירה 3, קומה ב׳</span></label><input type="text" id="pUnit" value=""></div>
+    </div></details>
+
+    <details class="sec"><summary>הערות כלליות</summary><div class="sec-b">
+      <div class="f"><label>שורה בכל הערה</label>
+      <textarea id="notes" rows="7"></textarea></div>
+    </div></details>
+  </div>
+
+  <!-- ============ OUTPUT ============ -->
+  <div class="card">
+    <div class="card-h">
+      <div class="tabs">
+        <button class="tab on" id="tb-pv" onclick="showTab('pv')">תצוגה מקדימה</button>
+        <button class="tab" id="tb-code" onclick="showTab('code')">קוד LISP</button>
+        <button class="tab" id="tb-help" onclick="showTab('help')">איך משתמשים</button>
+      </div>
+      <div class="pv-bar">
+        <span class="pv-hint" id="entcount"></span>
+        <button class="btn btn-sm" onclick="fitView()">התאם תצוגה</button>
+        <button class="btn btn-sm" onclick="copyLSP()">העתק קוד</button>
+      </div>
+    </div>
+    <div class="card-b">
+      <div id="warns"></div>
+      <div id="pane-pv"><svg id="preview" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      <div id="pane-code" class="hidden"><pre id="lsp"></pre></div>
+      <div id="pane-help" class="hidden" style="line-height:1.75;font-size:12.5px;max-width:760px">
+        <div class="msg msg-i" style="font-size:12.5px">
+          <b>הפעלה באוטוקאד</b><br>
+          1. לחץ <b>⬇ הורד ‎.lsp</b> ושמור את הקובץ.<br>
+          2. באוטוקאד: <span style="font-family:var(--mono)">APPLOAD</span> ← בחר את הקובץ ← <b>Load</b>.<br>
+          3. הקלד <span style="font-family:var(--mono)">MIGUN</span> ואשר.<br>
+          4. בחר נקודת בסיס בשרטוט — הנספח ייווצר ממנה כלפי מעלה/שמאלה.
+        </div>
+        <p style="margin:12px 0 6px"><b>למה זה לא נשבר</b></p>
+        <ul style="padding-inline-start:20px;color:var(--txt2)">
+          <li>כל הגאומטריה נוצרת ב־<span style="font-family:var(--mono)">entmake</span>, לא בפקודות — כך ש־OSNAP, Dynamic Input, ORTHO והגדרות מקומיות לא משפיעים על התוצאה.</li>
+          <li>הסקריפט שומר ומחזיר את משתני המערכת שהוא נוגע בהם, וכולל <span style="font-family:var(--mono)">*error*</span> handler — ביטול באמצע לא ישאיר את האוטוקאד במצב שבור.</li>
+          <li>העברית נכתבת כ־<span style="font-family:var(--mono)">\U+05DE</span> ולא כתווים גולמיים, כדי שלא תלוי בקידוד שבו האוטוקאד קורא את הקובץ.</li>
+          <li>שמות השכבות באנגלית מאותה סיבה. אפשר לשנות את הקידומת בהגדרות השרטוט.</li>
+        </ul>
+        <p style="margin:12px 0 6px"><b>שכבות שנוצרות</b></p>
+        <div id="layerlist" style="font-family:var(--mono);font-size:11.5px;color:var(--txt2);direction:ltr;text-align:left"></div>
+        <p style="margin:12px 0 6px"><b>חשוב</b></p>
+        <p style="color:var(--txt2)">ברירות המחדל המספריות בכלי הן נקודת פתיחה בלבד וטעונות אימות מול הדרישה התקפה לפרויקט. הכללים מרוכזים בקובץ <span style="font-family:var(--mono)">RULES.md</span> שליד הכלי — זה המקום היחיד שצריך לערוך כדי לשנות התנהגות.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ==================================================================
+   RULES — מנוע הכללים
+   ------------------------------------------------------------------
+   זהו המקום היחיד שצריך לערוך כדי לשנות התנהגות של הכלי.
+   כל ערך מספרי כאן הוא ברירת מחדל הניתנת לדריסה בטופס.
+   ערך שמסומן  verify:true  לא אומת מול מסמך מחייב — ראה RULES.md.
+   כל המידות בסנטימטרים אלא אם צוין אחרת.
+   ================================================================== */
+const RULES = {
+
+  /* --- סוגי מרחבים מוגנים --------------------------------------- */
+  kinds: {
+    MAMAD: {
+      label:'ממ״ד — מרחב מוגן דירתי', short:'ממ״ד',
+      minArea: 9.0,          // מ״ר נטו
+      minSide: 200,          // ס״מ, צלע קצרה מזערית
+      minHeight: 250,        // ס״מ, גובה פנים נטו
+      areaPerOccupant: 0,    // 0 = לא רלוונטי לסוג זה
+      wall: 25, ceiling: 25, floor: 25,
+      door: {w:80, h:200}, window:{w:100, h:100},
+      verify:true
+    },
+    MAMAK: {
+      label:'ממ״ק — מרחב מוגן קומתי', short:'ממ״ק',
+      minArea: 12.0, minSide: 200, minHeight: 250,
+      areaPerOccupant: 0.75,
+      wall: 25, ceiling: 25, floor: 25,
+      door:{w:80, h:200}, window:{w:100, h:100},
+      verify:true
+    },
+    MAMAM: {
+      label:'ממ״מ — מרחב מוגן מוסדי', short:'ממ״מ',
+      minArea: 12.0, minSide: 200, minHeight: 250,
+      areaPerOccupant: 1.0,
+      wall: 30, ceiling: 30, floor: 30,
+      door:{w:90, h:200}, window:{w:100, h:100},
+      verify:true
+    },
+    SHELTER: {
+      label:'מקלט תקני', short:'מקלט',
+      minArea: 15.0, minSide: 250, minHeight: 250,
+      areaPerOccupant: 1.0,
+      wall: 40, ceiling: 40, floor: 40,
+      door:{w:90, h:200}, window:{w:0, h:0},
+      verify:true
+    }
+  },
+
+  /* --- כללי אימות (ולידציה) -------------------------------------
+     כל כלל מקבל את אובייקט הנתונים ומחזיר null אם עבר,
+     או {level:'error'|'warn', msg:'...'} אם נכשל.
+     להוספת כלל חדש — הוסף פונקציה למערך. אין צורך לגעת בשום מקום אחר. */
+  checks: [
+    d => d.areaNet + 1e-9 < d.kind.minArea
+      ? {level:'error', msg:`שטח נטו ${d.areaNet.toFixed(2)} מ״ר קטן מהמזערי ${d.kind.minArea} מ״ר עבור ${d.kind.short}`}
+      : null,
+
+    d => Math.min(d.L, d.W) < d.kind.minSide
+      ? {level:'error', msg:`הצלע הקצרה ${Math.min(d.L,d.W)} ס״מ קטנה מהמזערית ${d.kind.minSide} ס״מ`}
+      : null,
+
+    d => d.H < d.kind.minHeight
+      ? {level:'error', msg:`גובה פנים ${d.H} ס״מ קטן מהמזערי ${d.kind.minHeight} ס״מ`}
+      : null,
+
+    d => {
+      const need = d.kind.areaPerOccupant * d.occupants;
+      return (need > 0 && d.areaNet + 1e-9 < need)
+        ? {level:'error', msg:`עבור ${d.occupants} נפשות נדרשים ${need.toFixed(2)} מ״ר (${d.kind.areaPerOccupant} מ״ר/נפש); קיימים ${d.areaNet.toFixed(2)} מ״ר`}
+        : null;
+    },
+
+    d => ['N','E','S','W'].map(k => d.t[k] < d.kind.wall
+        ? {level:'warn', msg:`עובי קיר ${WALL_HE[k]} הוא ${d.t[k]} ס״מ, פחות מ־${d.kind.wall} ס״מ המקובלים ל${d.kind.short}`}
+        : null),
+
+    d => d.tCeil < d.kind.ceiling
+      ? {level:'warn', msg:`עובי תקרה ${d.tCeil} ס״מ פחות מ־${d.kind.ceiling} ס״מ`}
+      : null,
+
+    d => d.door.w < d.kind.door.w
+      ? {level:'warn', msg:`רוחב פתח הדלת ${d.door.w} ס״מ קטן מ־${d.kind.door.w} ס״מ`}
+      : null,
+
+    /* פתח חייב להיכנס בתוך אורך הקיר שעליו הוא יושב */
+    d => d.openings.map(o => {
+      const span = o.wall==='N'||o.wall==='S' ? d.L : d.W;
+      if (o.off < 0) return {level:'error', msg:`${o.name}: מרחק מפינה שלילי`};
+      if (o.off + o.w > span)
+        return {level:'error', msg:`${o.name} חורג מקיר ${WALL_HE[o.wall]}: ${o.off}+${o.w} > ${span} ס״מ`};
+      return null;
+    }),
+
+    /* מרווח מזערי בין פתח לפינה — נדרש למרחב עיגון של המשקוף */
+    d => d.openings.map(o => {
+      const span = o.wall==='N'||o.wall==='S' ? d.L : d.W;
+      const gap = Math.min(o.off, span - o.off - o.w);
+      return gap < RULES.minCornerGap && gap >= 0
+        ? {level:'warn', msg:`${o.name} במרחק ${gap} ס״מ מהפינה, פחות מ־${RULES.minCornerGap} ס״מ`}
+        : null;
+    }),
+
+    /* שני פתחים על אותו קיר לא יחפפו */
+    d => {
+      const out = [];
+      for (let i=0;i<d.openings.length;i++)
+        for (let j=i+1;j<d.openings.length;j++) {
+          const a=d.openings[i], b=d.openings[j];
+          if (a.wall===b.wall && a.off < b.off+b.w && b.off < a.off+a.w)
+            out.push({level:'error', msg:`${a.name} ו${b.name} חופפים על קיר ${WALL_HE[a.wall]}`});
+        }
+      return out;
+    },
+
+    d => (d.win && d.win.sill + d.win.h > d.H)
+      ? {level:'error', msg:`ראש החלון (${d.win.sill}+${d.win.h}) גבוה מגובה הפנים ${d.H} ס״מ`}
+      : null,
+
+    d => (d.door.h > d.H)
+      ? {level:'error', msg:`גובה הדלת ${d.door.h} ס״מ גדול מגובה הפנים ${d.H} ס״מ`}
+      : null
+  ],
+
+  minCornerGap: 10,     // ס״מ — מרווח מזערי בין פתח לפינת הקיר. verify
+  hatchSpacing: 8,      // ס״מ — מרווח קווי הצללת הבטון בתוכנית
+  hatchAngle: 45,       // מעלות
+  doorLeaf: 5,          // ס״מ — עובי כנף הדלת בשרטוט
+  jambTick: 1,          // ס״מ
+
+  /* --- שכבות ---------------------------------------------------
+     name נשמר באנגלית בכוונה: קובץ ‎.lsp‎ נקרא ב־ANSI ולא ב־UTF-8,
+     ושמות שכבות בעברית ייצאו משובשים בחלק מההתקנות.
+     color = מספר צבע ACI. lt = שם סוג קו. */
+  layers: {
+    wall:    {name:'WALL',    color:  7, lt:'Continuous', desc:'קווי מתאר של קירות מוגנים'},
+    hatch:   {name:'HATCH',   color:  8, lt:'Continuous', desc:'הצללת בטון מזוין'},
+    door:    {name:'DOOR',    color:  3, lt:'Continuous', desc:'דלת הדף וכיוון פתיחה'},
+    window:  {name:'WINDOW',  color:  4, lt:'Continuous', desc:'חלון הדף'},
+    vent:    {name:'VENT',    color:  6, lt:'Continuous', desc:'פתח אוורור ויחידת סינון'},
+    dim:     {name:'DIM',     color:  2, lt:'Continuous', desc:'מידות'},
+    text:    {name:'TEXT',    color:  7, lt:'Continuous', desc:'טקסט וכותרות'},
+    table:   {name:'TABLE',   color:  7, lt:'Continuous', desc:'טבלאות ומקרא'},
+    frame:   {name:'FRAME',   color:  7, lt:'Continuous', desc:'מסגרת ושדה כותרת'},
+    section: {name:'SECTION', color:  1, lt:'Continuous', desc:'חתך'},
+    axis:    {name:'AXIS',    color:  1, lt:'CENTER2',    desc:'צירים וסימוני חתך'},
+    hidden:  {name:'HIDDEN',  color:  5, lt:'HIDDEN2',    desc:'קווים נסתרים'}
+  },
+
+  /* --- גדלי גיליון, מ״מ --------------------------------------- */
+  sheets: { A4:[297,210], A3:[420,297], A2:[594,420], A1:[841,594] },
+  sheetMargin: 10,      // מ״מ
+  titleBlock: {w:170, h:40},  // מ״מ
+
+  /* --- טקסטים ------------------------------------------------- */
+  defaultNotes: [
+    'הביצוע בהתאם לתקנות ההתגוננות האזרחית (מפרטים לבניית מקלטים) ולהנחיות פיקוד העורף התקפות למועד ההיתר.',
+    'כל הקירות, התקרה והרצפה של המרחב המוגן מבטון מזוין יצוק באתר, ללא הפסקות יציקה בלתי מתוכננות.',
+    'אין להעביר בקירות ובתקרת המרחב המוגן צנרת או כבלים כלשהם, למעט המערכות המאושרות המסומנות בתוכנית.',
+    'דלת ההדף וחלון ההדף יהיו בעלי תו תקן ואישור פיקוד העורף, ויותקנו לפי הוראות היצרן.',
+    'מערכת הסינון והאוורור תותקן בהתאם למפרט היצרן ותימסר לאחר בדיקת תקינות.',
+    'המידות בתוכנית הן מידות פנים נטו לאחר גמר.',
+    'כל סטייה מהמסומן בנספח זה טעונה אישור מוקדם של יועץ המיגון.'
+  ],
+
+  legend: [
+    {sym:'wall',   text:'קיר בטון מזוין — מרחב מוגן'},
+    {sym:'door',   text:'דלת הדף ורסיסים'},
+    {sym:'window', text:'חלון הדף ורסיסים'},
+    {sym:'vent',   text:'פתח אוורור / יחידת סינון'}
+  ]
+};
+
+const WALL_HE = {N:'צפון', E:'מזרח', S:'דרום', W:'מערב'};
+
+/* ==================================================================
+   DRAW — אוסף ישויות. מקור אמת יחיד לתצוגה המקדימה ולקוד ה-LISP,
+   כך שאי אפשר שהתצוגה תראה משהו אחר ממה שייווצר באוטוקאד.
+   כל הקואורדינטות בסנטימטרים במרחב המודל.
+   ================================================================== */
+class Draw {
+  constructor(){ this.e=[]; this.dx=0; this.dy=0; }
+  at(dx,dy){ this.dx=dx; this.dy=dy; return this; }
+  P(x,y){ return [x+this.dx, y+this.dy]; }
+  line(l,x1,y1,x2,y2){ this.e.push({t:'line',l,a:this.P(x1,y1),b:this.P(x2,y2)}); }
+  pl(l,pts,c){ this.e.push({t:'pl',l,pts:pts.map(p=>this.P(p[0],p[1])),closed:!!c}); }
+  rect(l,x1,y1,x2,y2){ this.pl(l,[[x1,y1],[x2,y1],[x2,y2],[x1,y2]],true); }
+  circle(l,x,y,r){ this.e.push({t:'circle',l,c:this.P(x,y),r}); }
+  arc(l,x,y,r,a0,a1){ this.e.push({t:'arc',l,c:this.P(x,y),r,a0,a1}); }
+  text(l,x,y,h,s,o){ o=o||{}; this.e.push({t:'text',l,p:this.P(x,y),h,s:String(s),
+      rot:o.rot||0, ha:o.ha||0, va:o.va||0}); }
+  dim(l,x1,y1,x2,y2,off,dir){ this.e.push({t:'dim',l,a:this.P(x1,y1),b:this.P(x2,y2),off,dir}); }
+
+  /* הצללת בטון: קווי 45° הנחתכים אל תוך המלבן. נוצרת כגאומטריה
+     מפורשת ולא כ-HATCH, כדי לא להיות תלויים בטעינת דפוסי הצללה. */
+  hatch(l,x1,y1,x2,y2,sp,ang){
+    if (x2<=x1 || y2<=y1) return;
+    const step = sp*Math.SQRT2, up = (ang%180)<90;
+    if (up){
+      for (let c=Math.ceil((y1-x2)/step)*step; c<=y2-x1; c+=step){
+        const xa=Math.max(x1,y1-c), xb=Math.min(x2,y2-c);
+        if (xb-xa>1e-6) this.line(l,xa,xa+c,xb,xb+c);
+      }
+    } else {
+      for (let c=Math.ceil((y1+x1)/step)*step; c<=y2+x2; c+=step){
+        const xa=Math.max(x1,c-y2), xb=Math.min(x2,c-y1);
+        if (xb-xa>1e-6) this.line(l,xa,c-xa,xb,c-xb);
+      }
+    }
+  }
+  hatchRect(l,hl,x1,y1,x2,y2,sp,ang,doHatch){
+    this.rect(l,x1,y1,x2,y2);
+    if (doHatch) this.hatch(hl,x1,y1,x2,y2,sp,ang);
+  }
+}
+
+/* ==================================================================
+   קריאת הטופס → אובייקט נתונים מנורמל
+   ================================================================== */
+const $ = id => document.getElementById(id);
+const num = id => { const v=parseFloat($(id).value); return isFinite(v)?v:0; };
+const str = id => $(id).value.trim();
+
+function collectData(){
+  const kk = $('kind').value;
+  const kind = RULES.kinds[kk];
+  const L=num('L'), W=num('W'), H=num('H');
+  const t = {N:num('tN'), E:num('tE'), S:num('tS'), W:num('tW')};
+
+  const door = {name:'דלת הדף', wall:$('dWall').value, off:num('dOff'),
+                w:num('dW'), h:num('dH'), swing:$('dSwing').value, hand:$('dHand').value};
+
+  const win = $('winOn').checked ? {name:'חלון הדף', wall:$('wWall').value, off:num('wOff'),
+                w:num('wW'), h:num('wH'), sill:num('wSill')} : null;
+
+  const vent = $('ventOn').checked ? {name:'פתח אוורור', wall:$('vWall').value, off:num('vOff'),
+                w:num('vD'), h:num('vD'), filt:num('vFilt'), z:num('vZ')} : null;
+
+  const openings = [door].concat(win?[win]:[]).concat(vent?[vent]:[]);
+
+  return {
+    kindKey:kk, kind, L, W, H, t,
+    tCeil:num('tCeil'), tFloor:num('tFloor'),
+    areaNet: (L*W)/10000,
+    occupants: num('occupants'),
+    door, win, vent, openings,
+    scale: parseFloat($('scale').value),
+    sheet: $('sheet').value,
+    units: $('units').value,
+    txtH: num('txtH'),
+    font: $('font').value,
+    lprefix: str('lprefix'),
+    realDims: $('realDims').checked,
+    purge: $('purge').checked,
+    show: {plan:$('cPlan').checked, sect:$('cSect').checked, table:$('cTable').checked,
+           legend:$('cLegend').checked, notes:$('cNotes').checked, frame:$('cFrame').checked,
+           dims:$('cDims').checked, hatch:$('cHatch').checked, north:$('cNorth').checked},
+    proj: {name:str('pName'), addr:str('pAddr'), gush:str('pGush'), helka:str('pHelka'),
+           file:str('pFile'), num:str('pNum'), cons:str('pCons'), date:str('pDate'), unit:str('pUnit')},
+    notes: $('notes').value.split('\n').map(s=>s.trim()).filter(Boolean)
+  };
+}
+
+/* הרצת כל כללי האימות מ-RULES.checks */
+function validate(d){
+  const out=[];
+  for (const chk of RULES.checks){
+    let r;
+    try { r = chk(d); } catch(err){ r = {level:'warn', msg:'כלל אימות נכשל: '+err.message}; }
+    (Array.isArray(r)?r:[r]).forEach(x => x && out.push(x));
+  }
+  return out;
+}
+
+/* ==================================================================
+   חלוקת קיר לקטעים מלאים סביב הפתחים שעליו
+   ------------------------------------------------------------------
+   מוסכמה: המרחק מפינה נמדד תמיד מהפינה הפנימית המערבית (קירות צפון/דרום)
+   או מהפינה הפנימית הדרומית (קירות מזרח/מערב).
+   ================================================================== */
+function wallGeom(d, wall){
+  const {L,W,t} = d;
+  // rect = [x1,y1,x2,y2] של הקיר כולו; axis = 'x' או 'y'; a0 = ראשית מדידת הפתחים
+  switch(wall){
+    case 'S': return {rect:[-t.W,-t.S, L+t.E, 0],   axis:'x', lo:-t.W, hi:L+t.E};
+    case 'N': return {rect:[-t.W, W,   L+t.E, W+t.N], axis:'x', lo:-t.W, hi:L+t.E};
+    case 'W': return {rect:[-t.W, 0,   0,     W],   axis:'y', lo:0,   hi:W};
+    case 'E': return {rect:[L,    0,   L+t.E, W],   axis:'y', lo:0,   hi:W};
+  }
+}
+
+function wallSegments(d, wall){
+  const g = wallGeom(d, wall);
+  const ops = d.openings.filter(o=>o.wall===wall)
+                        .map(o=>[o.off, o.off+o.w])
+                        .sort((a,b)=>a[0]-b[0]);
+  const segs=[]; let cur=g.lo;
+  for (const [a,b] of ops){
+    if (a>cur) segs.push([cur,a]);
+    cur = Math.max(cur,b);
+  }
+  if (g.hi>cur) segs.push([cur,g.hi]);
+
+  const r=g.rect;
+  return segs.filter(s=>s[1]-s[0]>1e-6).map(s => g.axis==='x'
+    ? [s[0], r[1], s[1], r[3]]
+    : [r[0], s[0], r[2], s[1]]);
+}
+
+/* המלבן שתופס פתח מסוים בתוך עובי הקיר */
+function openingRect(d, o){
+  const g = wallGeom(d, o.wall), r = g.rect;
+  return g.axis==='x' ? [o.off, r[1], o.off+o.w, r[3]]
+                      : [r[0], o.off, r[2], o.off+o.w];
+}
+
+/* ==================================================================
+   מסגרת מקומית לכל קיר
+     o = ראשית מדידת הפתחים על הפאה הפנימית
+     u = כיוון גדילת המרחק מפינה
+     n = כיוון "פנימה אל תוך המרחב המוגן"
+     נקודה נמדדת כ- (s לאורך הקיר, p לעומק): p=0 בפאה הפנימית,
+     p=-th בפאה החיצונית.
+   ================================================================== */
+function wallFrame(d, wall){
+  const {L,W,t}=d;
+  switch(wall){
+    case 'S': return {o:[0,0], u:[1,0], n:[0,1],  th:t.S, span:L};
+    case 'N': return {o:[0,W], u:[1,0], n:[0,-1], th:t.N, span:L};
+    case 'W': return {o:[0,0], u:[0,1], n:[1,0],  th:t.W, span:W};
+    case 'E': return {o:[L,0], u:[0,1], n:[-1,0], th:t.E, span:W};
+  }
+}
+const wp  = (f,s,p) => [f.o[0]+f.u[0]*s+f.n[0]*p, f.o[1]+f.u[1]*s+f.n[1]*p];
+const ang = v => Math.atan2(v[1],v[0])*180/Math.PI;
+
+/* המרת ישות מידה לגאומטריה — משמשת את התצוגה המקדימה תמיד,
+   ואת ה-LISP כאשר המשתמש בחר מידות כגאומטריה במקום Dimension. */
+function dimToGeom(e, th){
+  const out=[], ext=th*0.6, tick=th*0.5;
+  const [x1,y1]=e.a, [x2,y2]=e.b, L=e.l;
+  const val = e.dir==='h' ? Math.abs(x2-x1) : Math.abs(y2-y1);
+  if (val < 1e-6) return out;
+  const txt = Math.round(val).toString();
+  if (e.dir==='h'){
+    const y=e.off, s1=Math.sign(y-y1)||1, s2=Math.sign(y-y2)||1;
+    out.push({t:'line',l:L,a:[x1,y1+s1*ext*0.3],b:[x1,y+s1*ext]});
+    out.push({t:'line',l:L,a:[x2,y2+s2*ext*0.3],b:[x2,y+s2*ext]});
+    out.push({t:'line',l:L,a:[x1,y],b:[x2,y]});
+    [[x1,y],[x2,y]].forEach(p=>out.push({t:'line',l:L,
+      a:[p[0]-tick,p[1]-tick],b:[p[0]+tick,p[1]+tick]}));
+    out.push({t:'text',l:L,p:[(x1+x2)/2,y+th*0.35],h:th,s:txt,rot:0,ha:1,va:0});
+  } else {
+    const x=e.off, s1=Math.sign(x-x1)||1, s2=Math.sign(x-x2)||1;
+    out.push({t:'line',l:L,a:[x1+s1*ext*0.3,y1],b:[x+s1*ext,y1]});
+    out.push({t:'line',l:L,a:[x2+s2*ext*0.3,y2],b:[x+s2*ext,y2]});
+    out.push({t:'line',l:L,a:[x,y1],b:[x,y2]});
+    [[x,y1],[x,y2]].forEach(p=>out.push({t:'line',l:L,
+      a:[p[0]-tick,p[1]-tick],b:[p[0]+tick,p[1]+tick]}));
+    out.push({t:'text',l:L,p:[x-th*0.35,(y1+y2)/2],h:th,s:txt,rot:90,ha:1,va:0});
+  }
+  return out;
+}
+
+/* פירוק טקסט לשורות לפי רוחב זמין */
+function wrap(s, maxChars){
+  const words=s.split(/\s+/), lines=[]; let cur='';
+  for (const w of words){
+    if (cur && (cur+' '+w).length>maxChars){ lines.push(cur); cur=w; }
+    else cur = cur ? cur+' '+w : w;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+/* ==================================================================
+   בניית המודל
+   ================================================================== */
+function buildModel(d){
+  const dr = new Draw();
+  const PM = mm => mm/10*d.scale;       // מ״מ בנייר → ס״מ במודל
+  const th = PM(d.txtH);                // גובה טקסט בסיס
+  const LY = {}; for (const k in RULES.layers) LY[k] = d.lprefix + RULES.layers[k].name;
+
+  const [swmm, shmm] = RULES.sheets[d.sheet];
+  const SW=PM(swmm), SH=PM(shmm), M=PM(RULES.sheetMargin);
+  const COLW = PM(92), GAP = PM(6);
+  const col  = {x0:SW-M-COLW, x1:SW-M, y0:M, y1:SH-M};
+  const main = {x0:M, x1:col.x0-GAP, y0:M, y1:SH-M};
+
+  /* ---------- מסגרת ושדה כותרת ---------- */
+  let tbTop = col.y0;
+  if (d.show.frame){
+    dr.at(0,0);
+    dr.rect(LY.frame, 0,0, SW,SH);
+    dr.rect(LY.frame, M,M, SW-M, SH-M);
+    const tbH = PM(RULES.titleBlock.h);
+    tbTop = col.y0 + tbH;
+    dr.rect(LY.frame, col.x0, col.y0, col.x1, tbTop);
+    const rows = [
+      ['פרויקט', d.proj.name],
+      ['כתובת',  d.proj.addr],
+      ['גוש / חלקה', [d.proj.gush,d.proj.helka].filter(Boolean).join(' / ')],
+      ['יחידה',  d.proj.unit],
+      ['יועץ מיגון', d.proj.cons],
+      ['תיק / נספח', [d.proj.file, d.proj.num].filter(Boolean).join(' / ')],
+      ['קנה מידה / תאריך', '1:'+d.scale+(d.proj.date?'   '+d.proj.date:'')]
+    ].filter(r=>r[1]);
+    const rh = tbH/Math.max(rows.length,1), pad=th*0.4, split=col.x0+(col.x1-col.x0)*0.62;
+    rows.forEach((r,i)=>{
+      const yb = tbTop - (i+1)*rh;
+      if (i) dr.line(LY.frame, col.x0, yb+rh, col.x1, yb+rh);
+      dr.line(LY.frame, split, yb, split, yb+rh);
+      dr.text(LY.text, col.x1-pad, yb+rh*0.3, th*0.8, r[0], {ha:2});
+      dr.text(LY.text, split-pad,  yb+rh*0.3, th*0.8, r[1], {ha:2});
+    });
+    dr.text(LY.text, col.x1, tbTop+th*0.8, th*1.5,
+            'נספח מיגון — ' + d.kind.short, {ha:2});
+  }
+
+  /* ---------- טור ימני: טבלה, מקרא, הערות ---------- */
+  let cy = col.y1;
+  const colPad = th*0.5;
+  const sectionTitle = s => { dr.text(LY.text, col.x1, cy-th*1.1, th*1.1, s, {ha:2});
+                              cy -= th*2.2; };
+
+  if (d.show.table){
+    sectionTitle('טבלת נתוני המרחב המוגן');
+    const rows = [
+      ['סוג', d.kind.label],
+      ['מידות פנים נטו', `${d.L} × ${d.W} ס״מ`],
+      ['שטח נטו', `${d.areaNet.toFixed(2)} מ״ר`],
+      ['שטח נדרש', `${d.kind.minArea.toFixed(2)} מ״ר`],
+      ['גובה פנים נטו', `${d.H} ס״מ`],
+      ['עובי קירות', `${d.t.N}/${d.t.E}/${d.t.S}/${d.t.W} ס״מ`],
+      ['עובי תקרה', `${d.tCeil} ס״מ`],
+      ['עובי רצפה', `${d.tFloor} ס״מ`],
+      ['דלת הדף', `${d.door.w}/${d.door.h} ס״מ — קיר ${WALL_HE[d.door.wall]}`],
+      d.win  ? ['חלון הדף', `${d.win.w}/${d.win.h} ס״מ — קיר ${WALL_HE[d.win.wall]}`] : null,
+      d.vent ? ['פתח אוורור', `Ø${d.vent.w} ס״מ — קיר ${WALL_HE[d.vent.wall]}`] : null,
+      d.occupants>0 ? ['נפשות מתוכנן', String(d.occupants)] : null
+    ].filter(Boolean);
+    const rh=th*1.9, split=col.x0+(col.x1-col.x0)*0.42, top=cy;
+    rows.forEach((r,i)=>{
+      const yb = top-(i+1)*rh;
+      dr.rect(LY.table, col.x0, yb, col.x1, yb+rh);
+      dr.line(LY.table, split, yb, split, yb+rh);
+      dr.text(LY.text, col.x1-colPad, yb+rh*0.32, th*0.85, r[0], {ha:2});
+      dr.text(LY.text, split-colPad,  yb+rh*0.32, th*0.85, r[1], {ha:2});
+    });
+    cy = top - rows.length*rh - th*2;
+  }
+
+  if (d.show.legend){
+    sectionTitle('מקרא');
+    const rh=th*2.1, sw=th*2.4;
+    RULES.legend.forEach(item=>{
+      const yb=cy-rh, xs=col.x1-sw;
+      if (item.sym==='wall'){
+        dr.rect(LY.wall, xs, yb+rh*0.25, col.x1, yb+rh*0.85);
+        if (d.show.hatch) dr.hatch(LY.hatch, xs, yb+rh*0.25, col.x1, yb+rh*0.85,
+                                   RULES.hatchSpacing*0.5, RULES.hatchAngle);
+      } else if (item.sym==='door'){
+        dr.line(LY.door, xs, yb+rh*0.3, col.x1, yb+rh*0.3);
+        dr.arc(LY.door, col.x1, yb+rh*0.3, sw*0.8, 90, 180);
+      } else if (item.sym==='window'){
+        dr.rect(LY.window, xs, yb+rh*0.35, col.x1, yb+rh*0.75);
+        dr.line(LY.window, xs, yb+rh*0.55, col.x1, yb+rh*0.55);
+      } else if (item.sym==='vent'){
+        dr.circle(LY.vent, col.x1-sw*0.5, yb+rh*0.55, sw*0.35);
+        dr.line(LY.vent, col.x1-sw, yb+rh*0.55, col.x1, yb+rh*0.55);
+      }
+      dr.text(LY.text, xs-colPad, yb+rh*0.32, th*0.85, item.text, {ha:2});
+      cy = yb;
+    });
+    cy -= th*2;
+  }
+
+  if (d.show.notes && d.notes.length){
+    sectionTitle('הערות כלליות');
+    const maxc = Math.floor((col.x1-col.x0)/(th*0.52));
+    d.notes.forEach((n,i)=>{
+      wrap((i+1)+'. '+n, maxc).forEach((ln,j)=>{
+        dr.text(LY.text, col.x1-(j?th*0.8:0), cy, th*0.8, ln, {ha:2});
+        cy -= th*1.35;
+      });
+      cy -= th*0.45;
+    });
+  }
+
+  /* ---------- אזורי התוכנית והחתך ---------- */
+  const hasSect = d.show.sect;
+  const planReg = {x0:main.x0, x1:main.x1,
+                   y0:main.y0 + (hasSect ? (main.y1-main.y0)*0.40 : 0), y1:main.y1};
+  const sectReg = {x0:main.x0, x1:main.x1,
+                   y0:main.y0, y1:main.y0 + (main.y1-main.y0)*0.37};
+  const fitBox = (b,r) => [ (r.x0+r.x1)/2 - (b.x0+b.x1)/2, (r.y0+r.y1)/2 - (b.y0+b.y1)/2 ];
+
+  const {L,W,H,t} = d;
+  const hs = RULES.hatchSpacing, hA = RULES.hatchAngle, doH = d.show.hatch;
+  const D1=PM(10), D2=PM(19), D3=PM(28);
+  const openingZ = o => o.sill!==undefined ? [o.sill, o.sill+o.h]
+                      : o.z!==undefined    ? [o.z-o.h/2, o.z+o.h/2]
+                      : [0, o.h];
+  const overflow = [];
+
+  /* ================= תוכנית ================= */
+  if (d.show.plan){
+    const b = {x0:-t.W-D3-th*2.5, x1:L+t.E+PM(10),
+               y0:-t.S-D3-th*2.5, y1:W+t.N+PM(16)};
+    if (b.x1-b.x0 > planReg.x1-planReg.x0 || b.y1-b.y0 > planReg.y1-planReg.y0)
+      overflow.push('התוכנית גדולה מהשטח הפנוי בגיליון — הגדל גיליון או עבור לקנה מידה קטן יותר');
+    const [ox,oy] = fitBox(b, planReg);
+    dr.at(ox,oy);
+
+    /* קירות — כל קיר מפוצל לקטעים מלאים סביב הפתחים שעליו */
+    for (const wl of ['S','N','W','E'])
+      for (const r of wallSegments(d, wl))
+        dr.hatchRect(LY.wall, LY.hatch, r[0],r[1],r[2],r[3], hs, hA, doH);
+
+    /* פתחים */
+    for (const o of d.openings){
+      const f = wallFrame(d, o.wall);
+      const A=wp(f,o.off,0), B=wp(f,o.off+o.w,0);
+      const C=wp(f,o.off,-f.th), Dp=wp(f,o.off+o.w,-f.th);
+
+      if (o===d.door){
+        const sh   = o.hand==='R' ? o.off+o.w : o.off;
+        const uSgn = o.hand==='R' ? -1 : 1;
+        const nSgn = o.swing==='in' ? 1 : -1;
+        const Ph = wp(f, sh, o.swing==='in' ? 0 : -f.th);
+        const Pt = [Ph[0]+f.n[0]*nSgn*o.w, Ph[1]+f.n[1]*nSgn*o.w];
+        const lw = RULES.doorLeaf;
+        const sx = f.u[0]*uSgn*lw, sy = f.u[1]*uSgn*lw;
+        dr.pl(LY.door, [Ph, Pt, [Pt[0]+sx,Pt[1]+sy], [Ph[0]+sx,Ph[1]+sy]], true);
+        const a0 = ang([f.u[0]*uSgn, f.u[1]*uSgn]), a1 = ang([f.n[0]*nSgn, f.n[1]*nSgn]);
+        if (((a1-a0+360)%360) > 180) dr.arc(LY.door, Ph[0],Ph[1], o.w, a1, a0);
+        else                          dr.arc(LY.door, Ph[0],Ph[1], o.w, a0, a1);
+        const lb = wp(f, o.off+o.w/2, f.th*0.9+th);
+        dr.text(LY.text, lb[0], lb[1], th*0.8,
+                `דלת הדף ${o.w}/${o.h}`, {ha:1, rot:(o.wall==='E'||o.wall==='W')?90:0});
+      }
+      else if (o===d.win){
+        [0.35,0.65].forEach(k=>{
+          const P1=wp(f,o.off,-f.th*k), P2=wp(f,o.off+o.w,-f.th*k);
+          dr.line(LY.window, P1[0],P1[1],P2[0],P2[1]);
+        });
+        dr.line(LY.window, A[0],A[1],B[0],B[1]);
+        dr.line(LY.window, C[0],C[1],Dp[0],Dp[1]);
+        const lb = wp(f, o.off+o.w/2, -f.th-th*1.2);
+        dr.text(LY.text, lb[0], lb[1], th*0.8,
+                `חלון הדף ${o.w}/${o.h}`, {ha:1, rot:(o.wall==='E'||o.wall==='W')?90:0});
+      }
+      else {
+        dr.line(LY.vent, A[0],A[1],B[0],B[1]);
+        dr.line(LY.vent, C[0],C[1],Dp[0],Dp[1]);
+        const cM = wp(f, o.off+o.w/2, o.filt/2);
+        dr.circle(LY.vent, cM[0],cM[1], o.filt/2);
+        dr.circle(LY.vent, cM[0],cM[1], o.filt/2*0.62);
+        const lb = wp(f, o.off+o.w/2, o.filt+th*1.1);
+        dr.text(LY.text, lb[0], lb[1], th*0.75, 'יחידת סינון', {ha:1});
+      }
+    }
+
+    /* מידות */
+    if (d.show.dims){
+      const ref = {S:-t.S, N:W+t.N, W:-t.W, E:L+t.E};
+      for (const wl of ['S','N','W','E']){
+        const ops = d.openings.filter(o=>o.wall===wl).sort((a,b)=>a.off-b.off);
+        if (!ops.length) continue;
+        const f = wallFrame(d, wl);
+        const pts=[0]; ops.forEach(o=>pts.push(o.off, o.off+o.w)); pts.push(f.span);
+        const u=[...new Set(pts.map(v=>+v.toFixed(3)))].sort((a,b)=>a-b);
+        for (let i=0;i<u.length-1;i++){
+          if (wl==='S') dr.dim(LY.dim, u[i],ref.S, u[i+1],ref.S, -t.S-D1, 'h');
+          if (wl==='N') dr.dim(LY.dim, u[i],ref.N, u[i+1],ref.N, W+t.N+D1, 'h');
+          if (wl==='W') dr.dim(LY.dim, ref.W,u[i], ref.W,u[i+1], -t.W-D1, 'v');
+          if (wl==='E') dr.dim(LY.dim, ref.E,u[i], ref.E,u[i+1], L+t.E+D1, 'v');
+        }
+      }
+      dr.dim(LY.dim, 0,-t.S, L,-t.S, -t.S-D2, 'h');
+      dr.dim(LY.dim, -t.W,-t.S, L+t.E,-t.S, -t.S-D3, 'h');
+      dr.dim(LY.dim, -t.W,0, -t.W,W, -t.W-D2, 'v');
+      dr.dim(LY.dim, -t.W,-t.S, -t.W,W+t.N, -t.W-D3, 'v');
+    }
+
+    /* כיתוב מרכזי */
+    dr.text(LY.text, L/2, W/2+th*0.6, th*1.6, d.kind.short, {ha:1});
+    dr.text(LY.text, L/2, W/2-th*1.3, th*1.0, d.areaNet.toFixed(2)+' מ״ר', {ha:1});
+    if (d.proj.unit) dr.text(LY.text, L/2, W/2-th*2.8, th*0.85, d.proj.unit, {ha:1});
+    dr.text(LY.text, L/2, W+t.N+PM(8), th*1.3, 'תוכנית — קנ״מ 1:'+d.scale, {ha:1});
+
+    /* סימון חתך א־א */
+    if (hasSect){
+      const yc=W/2, xa=-t.W-PM(6), xb=L+t.E+PM(6), a=th*0.9;
+      dr.line(LY.axis, xa,yc, xb,yc);
+      [[xa,1],[xb,-1]].forEach(([x,s])=>{
+        dr.pl(LY.axis, [[x,yc],[x+s*a*1.6,yc+a*0.55],[x+s*a*1.6,yc-a*0.55]], true);
+        dr.text(LY.text, x-s*a*1.4, yc+a, th*0.95, 'א', {ha:1});
+      });
+    }
+
+    /* חץ צפון */
+    if (d.show.north){
+      const nx=L+t.E+PM(4), ny=W+t.N+PM(4), r=PM(7);
+      dr.circle(LY.text, nx, ny, r);
+      dr.pl(LY.text, [[nx,ny+r*0.85],[nx-r*0.4,ny-r*0.55],[nx,ny-r*0.2],[nx+r*0.4,ny-r*0.55]], true);
+      dr.text(LY.text, nx, ny+r*1.15, th*0.9, 'צ', {ha:1});
+    }
+  }
+
+  /* ================= חתך א־א ================= */
+  if (hasSect){
+    const b = {x0:-t.W-D2-th*2.5, x1:L+t.E+PM(10),
+               y0:-d.tFloor-PM(14), y1:H+d.tCeil+PM(14)};
+    const [ox,oy] = fitBox(b, sectReg);
+    dr.at(ox,oy);
+
+    dr.hatchRect(LY.section, LY.hatch, -t.W,-d.tFloor, L+t.E,0,     hs,hA,doH);
+    dr.hatchRect(LY.section, LY.hatch, -t.W,H,         L+t.E,H+d.tCeil, hs,hA,doH);
+
+    const vSplit = (wl,x1,x2)=>{
+      const ops = d.openings.filter(o=>o.wall===wl).map(openingZ).sort((a,b)=>a[0]-b[0]);
+      let cur=0; const segs=[];
+      for (const [z0,z1] of ops){ if (z0>cur) segs.push([cur,z0]); cur=Math.max(cur,z1); }
+      if (H>cur) segs.push([cur,H]);
+      segs.forEach(s=>dr.hatchRect(LY.section, LY.hatch, x1,s[0],x2,s[1], hs,hA,doH));
+    };
+    vSplit('W', -t.W, 0);
+    vSplit('E', L, L+t.E);
+
+    /* פתחים בקירות הניצבים למישור החתך — בקו נסתר */
+    d.openings.filter(o=>o.wall==='N'||o.wall==='S').forEach(o=>{
+      const [z0,z1]=openingZ(o);
+      dr.rect(LY.hidden, o.off, z0, o.off+o.w, z1);
+    });
+
+    if (d.show.dims){
+      dr.dim(LY.dim, -t.W,0, -t.W,H, -t.W-D1, 'v');
+      dr.dim(LY.dim, -t.W,H, -t.W,H+d.tCeil, -t.W-D2, 'v');
+      dr.dim(LY.dim, -t.W,-d.tFloor, -t.W,0, -t.W-D2, 'v');
+    }
+
+    /* סימון מפלס רצפה */
+    const lx=L*0.5, a=th*0.8;
+    dr.pl(LY.section, [[lx,0],[lx-a*0.6,-a],[lx+a*0.6,-a]], true);
+    dr.text(LY.text, lx+a, -a*0.9, th*0.85, '±0.00', {ha:0});
+
+    dr.text(LY.text, L/2, H/2, th*1.2, d.kind.short, {ha:1});
+    dr.text(LY.text, L/2, -d.tFloor-PM(9), th*1.3, 'חתך א־א — קנ״מ 1:'+d.scale, {ha:1});
+  }
+
+  return {ents:dr.e, LY, SW, SH, th, PM, overflow};
+}
+
+/* ==================================================================
+   AutoLISP emitter
+   ------------------------------------------------------------------
+   שתי מלכודות שהקוד כאן נמנע מהן במכוון:
+
+   1. באוטוליספ ה-entity data מבטא זוויות ב*רדיאנים*, גם כשקובץ DXF
+      מאותו סוג שומר אותן במעלות. קודי 50/51 ב-ARC ו-50 ב-TEXT
+      נכתבים כאן ברדיאנים.
+   2. קובץ ‎.lsp‎ נקרא על ידי אוטוקאד בקידוד ANSI ולא UTF-8, ולכן
+      עברית גולמית תצא משובשת. כל טקסט עברי נכתב כ-\U+05DE,
+      שהוא ASCII נקי, ומפוענח על ידי מנוע הטקסט של אוטוקאד.
+   ================================================================== */
+
+const UNIT_F = {cm:1, mm:10, m:0.01};
+const N = v => { const r=Math.round(v*1e3)/1e3; return (Object.is(r,-0)?0:r).toString(); };
+const RAD = deg => N(deg*Math.PI/180);
+
+function lspStr(s){
+  let out='';
+  for (const ch of String(s)){
+    const c = ch.codePointAt(0);
+    if (ch==='״') { out+='\\"'; continue; }        // גרשיים עברי → מרכאות ASCII
+    if (ch==='׳') { out+="'";   continue; }        // גרש עברי  → אפוסטרוף
+    if (ch==='\\')      out += '\\\\';
+    else if (ch==='"')  out += '\\"';
+    else if (c<32)      out += ' ';
+    else if (c>126)     out += '\\\\U+' + c.toString(16).toUpperCase().padStart(4,'0');
+    else                out += ch;
+  }
+  return '"'+out+'"';
+}
+
+function genLSP(d, model){
+  const U = UNIT_F[d.units];
+  const {ents, LY, th} = model;
+  const STY = d.lprefix+'TXT', DST = d.lprefix+'DIM-1-'+d.scale;
+
+  /* רק השכבות שבאמת נעשה בהן שימוש */
+  const used = new Set(ents.map(e=>e.l));
+  const layerDefs = Object.values(RULES.layers)
+    .map(l => ({...l, full:d.lprefix+l.name}))
+    .filter(l => used.has(l.full));
+
+  const body = [];
+  const push = s => body.push(s);
+
+  for (const e of ents){
+    let list = [e];
+    if (e.t==='dim' && !d.realDims) list = dimToGeom(e, th);
+    for (const g of list){
+      switch(g.t){
+        case 'line':
+          push(`(L ${lspStr(g.l)} ${N(g.a[0])} ${N(g.a[1])} ${N(g.b[0])} ${N(g.b[1])})`); break;
+        case 'pl':
+          push(`(P ${lspStr(g.l)} '(${g.pts.map(p=>`(${N(p[0])} ${N(p[1])})`).join(' ')}) ${g.closed?1:0})`); break;
+        case 'circle':
+          push(`(C ${lspStr(g.l)} ${N(g.c[0])} ${N(g.c[1])} ${N(g.r)})`); break;
+        case 'arc':
+          push(`(A ${lspStr(g.l)} ${N(g.c[0])} ${N(g.c[1])} ${N(g.r)} ${RAD(g.a0)} ${RAD(g.a1)})`); break;
+        case 'text':
+          push(`(T ${lspStr(g.l)} ${N(g.p[0])} ${N(g.p[1])} ${N(g.h)} ${lspStr(g.s)} ${RAD(g.rot)} ${g.ha} ${g.va})`); break;
+        case 'dim':
+          push(`(D ${lspStr(g.l)} ${N(g.a[0])} ${N(g.a[1])} ${N(g.b[0])} ${N(g.b[1])} ${N(g.off)} ${g.dir==='h'?'T':'nil'})`); break;
+      }
+    }
+  }
+
+  /* פיצול לפונקציות משנה — נמנע מ-defun יחיד ענק */
+  const CH = 300, chunks = [];
+  for (let i=0;i<body.length;i+=CH) chunks.push(body.slice(i,i+CH));
+
+  const hdr = [
+`;;; ==================================================================`,
+`;;;  ${d.kind.label}${d.proj.name ? '  |  '+d.proj.name : ''}`,
+`;;;  נספח מיגון — נוצר על ידי CHP Migun Annex Generator`,
+`;;;`,
+`;;;  שימוש:  APPLOAD  →  טען קובץ זה  →  הקלד  MIGUN  →  בחר נקודת בסיס`,
+`;;;`,
+`;;;  קנה מידה 1:${d.scale}   גיליון ${d.sheet}   יחידות ${d.units}`,
+`;;;  ${ents.length} ישויות   |   ${layerDefs.length} שכבות`,
+`;;; ==================================================================`,
+``].join('\n');
+
+  const helpers = `
+(setq *U* ${N(U)})
+(setq *BX* 0.0 *BY* 0.0)
+(setq *STY* "${STY}")
+
+(defun MG:P  (x y) (list (+ *BX* (* *U* x)) (+ *BY* (* *U* y)) 0.0))
+(defun MG:P2 (x y) (list (+ *BX* (* *U* x)) (+ *BY* (* *U* y))))
+
+(defun MG:lt (nm)
+  (if (not (tblsearch "LTYPE" nm))
+    (foreach f '("acadiso.lin" "acad.lin")
+      (if (not (tblsearch "LTYPE" nm))
+        (vl-catch-all-apply 'command (list "_.-LINETYPE" "_Load" nm f "")))))
+  (if (tblsearch "LTYPE" nm) nm "Continuous"))
+
+(defun MG:lay (nm col lt)
+  (if (not (tblsearch "LAYER" nm))
+    (entmake (list '(0 . "LAYER") '(100 . "AcDbSymbolTableRecord")
+                   '(100 . "AcDbLayerTableRecord")
+                   (cons 2 nm) '(70 . 0) (cons 62 col) (cons 6 (MG:lt lt)))))
+  nm)
+
+(defun MG:style (nm fnt)
+  (if (not (tblsearch "STYLE" nm))
+    (entmake (list '(0 . "STYLE") '(100 . "AcDbSymbolTableRecord")
+                   '(100 . "AcDbTextStyleTableRecord")
+                   (cons 2 nm) '(70 . 0) '(40 . 0.0) '(41 . 1.0)
+                   '(50 . 0.0) '(71 . 0) '(42 . 2.5)
+                   (cons 3 fnt) '(4 . ""))))
+  nm)
+
+;; ---- יוצרי ישויות. entmake ולא command: אינו מושפע מ-OSNAP,
+;; ---- מ-Dynamic Input, מ-ORTHO או מפקודה פעילה אחרת.
+(defun L (ly x1 y1 x2 y2)
+  (entmake (list '(0 . "LINE") '(100 . "AcDbEntity") (cons 8 ly)
+                 '(100 . "AcDbLine")
+                 (cons 10 (MG:P x1 y1)) (cons 11 (MG:P x2 y2)))))
+
+(defun P (ly pts cl / d)
+  (setq d (list '(0 . "LWPOLYLINE") '(100 . "AcDbEntity") (cons 8 ly)
+                '(100 . "AcDbPolyline") (cons 90 (length pts)) (cons 70 cl)))
+  (foreach p pts
+    (setq d (append d (list (cons 10 (MG:P2 (car p) (cadr p)))))))
+  (entmake d))
+
+(defun C (ly x y r)
+  (entmake (list '(0 . "CIRCLE") '(100 . "AcDbEntity") (cons 8 ly)
+                 '(100 . "AcDbCircle") (cons 10 (MG:P x y)) (cons 40 (* *U* r)))))
+
+;; זוויות ברדיאנים — כך מצפה entmake, גם אם DXF שומר מעלות.
+(defun A (ly x y r a0 a1)
+  (entmake (list '(0 . "ARC") '(100 . "AcDbEntity") (cons 8 ly)
+                 '(100 . "AcDbCircle") (cons 10 (MG:P x y)) (cons 40 (* *U* r))
+                 '(100 . "AcDbArc") (cons 50 a0) (cons 51 a1))))
+
+(defun T (ly x y h s rot ha va)
+  (entmake (list '(0 . "TEXT") '(100 . "AcDbEntity") (cons 8 ly)
+                 '(100 . "AcDbText")
+                 (cons 10 (MG:P x y)) (cons 40 (* *U* h)) (cons 1 s)
+                 (cons 50 rot) (cons 7 *STY*) (cons 72 ha)
+                 (cons 11 (MG:P x y))
+                 '(100 . "AcDbText") (cons 73 va))))
+
+(defun D (ly x1 y1 x2 y2 od hz)
+  (setvar "CLAYER" ly)
+  (vl-catch-all-apply 'command
+    (list "_.DIMLINEAR" (MG:P x1 y1) (MG:P x2 y2)
+          (if hz "_H" "_V")
+          (if hz (MG:P (/ (+ x1 x2) 2.0) od) (MG:P od (/ (+ y1 y2) 2.0))))))
+
+(defun MG:purge ( / ss i )
+  (foreach ly *MGLAYERS*
+    (if (setq ss (ssget "_X" (list (cons 8 ly) (cons 410 (getvar "CTAB")))))
+      (repeat (setq i (sslength ss)) (entdel (ssname ss (setq i (1- i))))))))
+`;
+
+  const layerCode = layerDefs
+    .map(l=>`  (MG:lay ${lspStr(l.full)} ${l.color} "${l.lt}")   ; ${l.desc}`).join('\n');
+  const layerList = '(setq *MGLAYERS* (list ' +
+    layerDefs.map(l=>lspStr(l.full)).join(' ') + '))';
+
+  /* משתני מערכת שאנו נוגעים בהם — נשמרים ומוחזרים במלואם */
+  const SV = ['CMDECHO','OSMODE','BLIPMODE','ATTREQ','FILEDIA','CLAYER','TEXTSTYLE',
+              'DIMSCALE','DIMTXT','DIMASZ','DIMDEC','DIMLFAC','DIMTAD','DIMTIH',
+              'DIMTOH','DIMBLK','DIMSAH','DIMEXE','DIMEXO','DIMGAP'];
+
+  const chunkDefs = chunks
+    .map((c,i)=>`(defun MG:g${i} ()\n${c.join('\n')}\n  (princ))`).join('\n\n');
+  const chunkCalls = chunks.map((c,i)=>`    (MG:g${i})`).join('\n');
+
+  return hdr + helpers + `
+${layerList}
+
+;; ---- הגאומטריה ----
+${chunkDefs}
+
+;; ==================================================================
+(defun c:MIGUN ( / *error* MG:sv MG:vals p0 )
+
+  (setq MG:sv  '(${SV.map(v=>`"${v}"`).join(' ')}))
+  (setq MG:vals (mapcar 'getvar MG:sv))
+
+  (defun MG:restore ()
+    (mapcar '(lambda (n v) (vl-catch-all-apply 'setvar (list n v))) MG:sv MG:vals)
+    (princ))
+
+  (defun *error* (m)
+    (MG:restore)
+    (if (and m (not (wcmatch (strcase m) "*BREAK*,*CANCEL*,*QUIT*")))
+      (princ (strcat "\\nMIGUN: " m)))
+    (princ))
+
+  (setvar "CMDECHO" 0)
+  (setvar "BLIPMODE" 0)
+  (setvar "ATTREQ" 0)
+  (setvar "FILEDIA" 0)
+  (setvar "OSMODE" 0)          ; ← בלי זה כל נקודה נתפסת לגאומטריה קיימת
+
+  (setq p0 (getpoint "\\nנקודת בסיס לנספח (פינה שמאלית תחתונה): "))
+  (if (null p0) (progn (MG:restore) (princ "\\nבוטל.") (exit)))
+  (setq *BX* (car p0) *BY* (cadr p0))
+
+${layerCode}
+  (MG:style ${lspStr(STY)} "${d.font}")
+  (setvar "TEXTSTYLE" ${lspStr(STY)})
+
+  ;; סגנון מידות ייעודי, כדי שניתן יהיה לשנות את כל המידות בבת אחת
+  (setvar "DIMSCALE" ${N(d.scale)})
+  (setvar "DIMTXT"   ${N(d.txtH/10*U)})
+  (setvar "DIMASZ"   ${N(0.25*U)})
+  (setvar "DIMEXE"   ${N(0.12*U)})
+  (setvar "DIMEXO"   ${N(0.10*U)})
+  (setvar "DIMGAP"   ${N(0.08*U)})
+  (setvar "DIMDEC"   0)
+  (setvar "DIMLFAC"  ${N(1/U)})     ; מציג תמיד סנטימטרים
+  (setvar "DIMTAD"   1)
+  (setvar "DIMTIH"   0)
+  (setvar "DIMTOH"   0)
+  (setvar "DIMSAH"   0)
+  (vl-catch-all-apply 'setvar (list "DIMBLK" "_ARCHTICK"))
+  (vl-catch-all-apply 'command (list "_.-DIMSTYLE" "_Save" ${lspStr(DST)} "_Y"))
+
+${d.purge ? '  (MG:purge)\n' : ''}
+  (princ "\\nמשרטט נספח מיגון...")
+  (setq *MGT* (getvar "MILLISECS"))
+${chunkCalls}
+
+  (MG:restore)
+  (princ (strcat "\\nהושלם: ${ents.length} ישויות."))
+  (princ)
+)
+
+(princ "\\n=== נספח מיגון נטען. הקלד  MIGUN  להתחלה. ===")
+(princ)
+`;
+}
+
+/* ==================================================================
+   תצוגה מקדימה — SVG. מצוירת מאותו מודל בדיוק שממנו נוצר ה-LISP.
+   ================================================================== */
+const ACI = {1:'#e11d48',2:'#ca8a04',3:'#16a34a',4:'#0891b2',5:'#2563eb',
+             6:'#c026d3',7:'currentColor',8:'#9ca3af',9:'#d1d5db'};
+const colorOf = full => {
+  const k = Object.values(RULES.layers).find(l=>full.endsWith(l.name));
+  return ACI[k?k.color:7] || 'currentColor';
+};
+const ltOf = full => {
+  const k = Object.values(RULES.layers).find(l=>full.endsWith(l.name));
+  if (!k) return null;
+  if (/CENTER/i.test(k.lt)) return '18,6,4,6';
+  if (/HIDDEN/i.test(k.lt)) return '10,6';
+  return null;
+};
+const hasHeb = s => /[֐-׿]/.test(s);
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+let VB = null, MODEL = null, LSPTEXT = '';
+
+function renderSVG(model){
+  const flat = [];
+  for (const e of model.ents){
+    if (e.t==='dim') dimToGeom(e, model.th).forEach(g=>flat.push(g));
+    else flat.push(e);
+  }
+  const parts = [];
+  let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18;
+  const bb = (x,y)=>{ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; };
+
+  for (const g of flat){
+    const c = colorOf(g.l), dash = ltOf(g.l);
+    const da = dash ? ` stroke-dasharray="${dash}"` : '';
+    if (g.t==='line'){
+      bb(g.a[0],g.a[1]); bb(g.b[0],g.b[1]);
+      parts.push(`<line x1="${g.a[0]}" y1="${g.a[1]}" x2="${g.b[0]}" y2="${g.b[1]}" stroke="${c}"${da}/>`);
+    } else if (g.t==='pl'){
+      g.pts.forEach(p=>bb(p[0],p[1]));
+      const pts = g.pts.map(p=>p[0]+','+p[1]).join(' ');
+      parts.push(`<${g.closed?'polygon':'polyline'} points="${pts}" fill="none" stroke="${c}"${da}/>`);
+    } else if (g.t==='circle'){
+      bb(g.c[0]-g.r,g.c[1]-g.r); bb(g.c[0]+g.r,g.c[1]+g.r);
+      parts.push(`<circle cx="${g.c[0]}" cy="${g.c[1]}" r="${g.r}" fill="none" stroke="${c}"${da}/>`);
+    } else if (g.t==='arc'){
+      const a0=g.a0*Math.PI/180, a1=g.a1*Math.PI/180;
+      const p0=[g.c[0]+g.r*Math.cos(a0), g.c[1]+g.r*Math.sin(a0)];
+      const p1=[g.c[0]+g.r*Math.cos(a1), g.c[1]+g.r*Math.sin(a1)];
+      bb(p0[0],p0[1]); bb(p1[0],p1[1]); bb(g.c[0],g.c[1]);
+      const sweep = ((g.a1-g.a0)%360+360)%360;
+      parts.push(`<path d="M ${p0[0]} ${p0[1]} A ${g.r} ${g.r} 0 ${sweep>180?1:0} 1 ${p1[0]} ${p1[1]}" fill="none" stroke="${c}"${da}/>`);
+    } else if (g.t==='text'){
+      bb(g.p[0],g.p[1]);
+      const anc = g.ha===1?'middle':g.ha===2?'end':'start';
+      const dir = hasHeb(g.s) ? ' direction="rtl"' : '';
+      parts.push(`<text transform="translate(${g.p[0]},${g.p[1]}) scale(1,-1) rotate(${-g.rot})" `+
+                 `font-size="${g.h}" text-anchor="${anc}" fill="${c}"${dir} `+
+                 `font-family="Arial,sans-serif" dominant-baseline="alphabetic">${esc(g.s)}</text>`);
+    }
+  }
+  const pad = Math.max((x1-x0),(y1-y0))*0.03 || 10;
+  return {svg:`<g transform="scale(1,-1)" stroke-width="${Math.max((x1-x0)/1400,0.5)}" vector-effect="non-scaling-stroke">${parts.join('')}</g>`,
+          box:{x:x0-pad, y:-(y1+pad), w:(x1-x0)+pad*2, h:(y1-y0)+pad*2}, n:flat.length};
+}
+
+function paint(){
+  const sv = $('preview');
+  const r = renderSVG(MODEL);
+  sv.innerHTML = r.svg;
+  if (!VB) VB = r.box;
+  sv.setAttribute('viewBox', `${VB.x} ${VB.y} ${VB.w} ${VB.h}`);
+  sv.setAttribute('preserveAspectRatio','xMidYMid meet');
+  $('entcount').textContent = `${MODEL.ents.length} ישויות · ${r.n} פרימיטיבים`;
+  return r.box;
+}
+function fitView(){ VB=null; paint(); }
+
+/* גלגלת = זום, גרירה = הזזה */
+(function(){
+  const sv = ()=>$('preview');
+  let drag=null;
+  document.addEventListener('wheel', ev=>{
+    if (ev.target.closest('#preview')===null || !VB) return;
+    ev.preventDefault();
+    const r=sv().getBoundingClientRect();
+    const mx=VB.x+(ev.clientX-r.left)/r.width*VB.w, my=VB.y+(ev.clientY-r.top)/r.height*VB.h;
+    const k=ev.deltaY>0?1.12:1/1.12;
+    VB={x:mx-(mx-VB.x)*k, y:my-(my-VB.y)*k, w:VB.w*k, h:VB.h*k};
+    sv().setAttribute('viewBox',`${VB.x} ${VB.y} ${VB.w} ${VB.h}`);
+  }, {passive:false});
+  document.addEventListener('pointerdown', ev=>{
+    if (!ev.target.closest('#preview')||!VB) return;
+    drag={x:ev.clientX,y:ev.clientY,vx:VB.x,vy:VB.y}; sv().classList.add('drag');
+  });
+  document.addEventListener('pointermove', ev=>{
+    if (!drag) return;
+    const r=sv().getBoundingClientRect();
+    VB.x=drag.vx-(ev.clientX-drag.x)/r.width*VB.w;
+    VB.y=drag.vy-(ev.clientY-drag.y)/r.height*VB.h;
+    sv().setAttribute('viewBox',`${VB.x} ${VB.y} ${VB.w} ${VB.h}`);
+  });
+  document.addEventListener('pointerup', ()=>{ drag=null; sv().classList.remove('drag'); });
+})();
+
+/* ==================================================================
+   חיווט הממשק
+   ================================================================== */
+function showTab(t){
+  ['pv','code','help'].forEach(k=>{
+    $('pane-'+k).classList.toggle('hidden', k!==t);
+    $('tb-'+k).classList.toggle('on', k===t);
+  });
+  if (t==='pv' && !VB) fitView();
+}
+
+function onKind(){
+  const k = RULES.kinds[$('kind').value];
+  $('kindnote').innerHTML =
+    `<b>${k.short}</b> — שטח מזערי ${k.minArea} מ״ר · צלע ${k.minSide} ס״מ · גובה ${k.minHeight} ס״מ`
+    + (k.areaPerOccupant ? ` · ${k.areaPerOccupant} מ״ר לנפש` : '')
+    + (k.verify ? '<br><b>ערכים אלה טרם אומתו מול מסמך מחייב — ראה RULES.md</b>' : '');
+  update();
+}
+
+function applyKindDefaults(){
+  const k = RULES.kinds[$('kind').value];
+  ['N','E','S','W'].forEach(w=>$('t'+w).value=k.wall);
+  $('tCeil').value=k.ceiling; $('tFloor').value=k.floor;
+  $('dW').value=k.door.w; $('dH').value=k.door.h;
+  if (k.window.w){ $('winOn').checked=true; $('wW').value=k.window.w; $('wH').value=k.window.h; }
+  else $('winOn').checked=false;
+}
+
+function update(){
+  const d = collectData();
+  $('winFields').classList.toggle('hidden', !$('winOn').checked);
+  $('ventFields').classList.toggle('hidden', !$('ventOn').checked);
+
+  /* מדדים מהירים */
+  const need = Math.max(d.kind.minArea, d.kind.areaPerOccupant*d.occupants);
+  const ok = d.areaNet+1e-9 >= need;
+  $('areastats').innerHTML =
+    `<div class="stat"><span>שטח נטו</span><b class="${ok?'ok':'bad'}">${d.areaNet.toFixed(2)} מ״ר</b></div>`+
+    `<div class="stat"><span>שטח נדרש</span><b>${need.toFixed(2)} מ״ר</b></div>`+
+    `<div class="stat"><span>מידות חוץ</span><b>${d.L+d.t.W+d.t.E} × ${d.W+d.t.S+d.t.N} ס״מ</b></div>`+
+    `<div class="stat"><span>נפח פנים</span><b>${(d.L*d.W*d.H/1e6).toFixed(2)} מ״ק</b></div>`;
+  $('areabadge').textContent = `${d.areaNet.toFixed(2)} מ״ר`;
+
+  const issues = validate(d);
+  MODEL = buildModel(d);
+  (MODEL.overflow||[]).forEach(m=>issues.push({level:'warn', msg:m}));
+
+  const errs = issues.filter(i=>i.level==='error'), wrns = issues.filter(i=>i.level==='warn');
+  $('warns').innerHTML =
+    (errs.length ? `<div class="msg msg-e"><b>${errs.length} חריגות מהכללים</b><br>`+
+        errs.map(e=>'• '+esc(e.msg)).join('<br>')+'</div>' : '') +
+    (wrns.length ? `<div class="msg msg-w"><b>${wrns.length} התראות</b><br>`+
+        wrns.map(e=>'• '+esc(e.msg)).join('<br>')+'</div>' : '') +
+    (!issues.length ? `<div class="msg msg-s">כל כללי האימות עברו.</div>` : '');
+
+  LSPTEXT = genLSP(d, MODEL);
+  $('lsp').textContent = LSPTEXT;
+  paint();
+}
+
+let tmr=null;
+const debounce = ()=>{ clearTimeout(tmr); tmr=setTimeout(update,140); };
+
+function downloadLSP(){
+  const d = collectData();
+  const nm = (d.proj.name||'migun').replace(/[^\w֐-׿-]+/g,'_');
+  const blob = new Blob([LSPTEXT], {type:'text/plain;charset=windows-1252'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${nm}_${d.kind.short}_1-${d.scale}.lsp`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function copyLSP(){ navigator.clipboard.writeText(LSPTEXT); }
+
+function saveJSON(){
+  const o={}; document.querySelectorAll('input,select,textarea').forEach(el=>{
+    if (el.id) o[el.id] = el.type==='checkbox' ? el.checked : el.value; });
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(o,null,2)],{type:'application/json'}));
+  a.download='migun-annex.json'; a.click(); URL.revokeObjectURL(a.href);
+}
+function loadJSON(inp){
+  const f=inp.files[0]; if(!f) return;
+  f.text().then(t=>{ const o=JSON.parse(t);
+    for (const k in o){ const el=$(k); if(!el) continue;
+      if (el.type==='checkbox') el.checked=o[k]; else el.value=o[k]; }
+    VB=null; update();
+  });
+  inp.value='';
+}
+
+function loadPreset(){
+  applyKindDefaults();
+  $('notes').value = RULES.defaultNotes.join('\n');
+  if (!$('pDate').value) $('pDate').value = new Date().toLocaleDateString('he-IL');
+  VB=null; update();
+}
+
+/* ---------- אתחול ---------- */
+(function init(){
+  $('kind').innerHTML = Object.entries(RULES.kinds)
+    .map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
+  $('notes').value = RULES.defaultNotes.join('\n');
+  $('pDate').value = new Date().toLocaleDateString('he-IL');
+  $('layerlist').innerHTML = Object.values(RULES.layers)
+    .map(l=>`${l.name.padEnd(9)} ACI ${String(l.color).padStart(2)}  ${l.lt}`).join('<br>');
+  document.querySelectorAll('input,select,textarea')
+    .forEach(el=>el.addEventListener(el.tagName==='SELECT'||el.type==='checkbox'?'change':'input', debounce));
+  onKind();
+})();
+</script>
+</body>
+</html>
