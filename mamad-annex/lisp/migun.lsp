@@ -18,10 +18,10 @@
 (vl-load-com)
 
 ;;; ---------- הגדרות ----------
-;;; חותמת בנייה — build_lsp.py מחליף את cd5872c5 בחתימה של migun.lsp.src.
+;;; חותמת בנייה — build_lsp.py מחליף את 1f4a1a47 בחתימה של migun.lsp.src.
 ;;; אותו מקור ? אותה חותמת (אין "רעש" בגיט). אם MMDTEST מדפיס חותמת
 ;;; שונה מזו שבמקור — אוטוקאד טען קובץ ישן.
-(setq *MG-BUILD* "cd5872c5")
+(setq *MG-BUILD* "1f4a1a47")
 (setq *MG-PREFIX* "MIGUN-")
 (setq *MG-FONT*   "arial.ttf")
 (setq *MG-UNITS*  1.0)   ; 1.0 = השרטוט בס"מ ; 0.01 = השרטוט במטרים ; 10.0 = מ"מ
@@ -520,39 +520,84 @@
 ;;; עיגול לחצי-סנטימטר הקרוב — קווי אדריכל אף פעם לא בדיוק על 25.000
 (defun mg:round5 (x) (/ (float (fix (+ (* x 2.0) 0.5))) 2.0))
 
-;;; העתקת הגאומטריה של האדריכל אל הנספח, בהגדלה.
-;;; מחזירה ssget של העותקים. הם מועברים לשכבת MIGUN-BASE כדי שהנספח
-;;; יהיה עצמאי ו-MMDWIPE ידע למחוק גם אותו.
-(defun mg:cut (wpts base target scl margin / bb p1 p2 ss e0 e nss n)
-  (setq bb (mg:bbox wpts))
-  (setq p1 (list (- (car bb) margin) (- (cadr bb) margin)))
-  (setq p2 (list (+ (caddr bb) margin) (+ (cadddr bb) margin)))
-  (setq ss (ssget "_C" p1 p2
-                  '((0 . "LINE,LWPOLYLINE,POLYLINE,ARC,CIRCLE,ELLIPSE,SPLINE,INSERT,HATCH,SOLID"))))
+;;; ==================================================================
+;;;  גזירת אזור מהתוכנית אל הנספח
+;;;
+;;;  המשתמש (27.08.2026): "למה שלא יבקש ממני לתחום מסביב לממ"ד".
+;;;  שני קליקים במקום ניחוש — וזה גם היחיד שעובד כאן, כי כל תוכנית
+;;;  קומה בקובץ הזה היא **בלוק אחד**: תחימה רגילה גוררת את כל הקומה,
+;;;  ומחיקת מה שבחוץ לא אפשרית בתוך בלוק.
+;;;
+;;;  לכן: מעתיקים את מה שנוגע בחלון, כולסים לבלוק חדש, מכניסים אותו
+;;;  בהגדלה, וגוזרים ב-XCLIP למלבן שנתחם. XCLIP חותך גם תוכן מקונן,
+;;;  כך שלא נשארות זנבות בולטות ואין צורך ב-TRIM.
+;;; ==================================================================
+
+;;; שם בלוק פנוי לגזירה הבאה
+(defun mg:cutname ( / i nm)
+  (setq i 1)
+  (while (tblsearch "BLOCK" (setq nm (strcat *MG-PREFIX* "CUT-" (itoa i))))
+    (setq i (1+ i)))
+  nm)
+
+;;; נקודה מהתוכנית אל מערכת הנספח: יעד + (p - בסיס) * הגדלה
+(defun mg:xf (p base target scl)
+  (list (+ (car target)  (* (- (car p)  (car base))  scl))
+        (+ (cadr target) (* (- (cadr p) (cadr base)) scl))))
+
+;;; הערה על בחירה — נמדד, לא משוער:
+;;; ניסיתי לבחור לפי תיבות חוסמות (‎vla-GetBoundingBox על כל ישות),
+;;; כדי לא להיות תלויים במה שמוצג על המסך. בקובץ הזה זה לקח **מעל
+;;; תשע דקות CPU**: כל תוכנית קומה היא בלוק עם ~3,000 ישויות ובתוכן
+;;; בלוקים מקוננים בני 1,900, וחישוב extents רקורסיבי עליהם יקר מאוד.
+;;; לכן חוזרים ל-ssget בחלון — מיידי, ותקף כאן כי המשתמש בדיוק תחם
+;;; את החלון על המסך, כלומר האזור ודאי מוצג.
+
+;;; גזירת החלון p1..p2 אל target בהגדלה scl. מחזירה את הבלוק שנוצר.
+;;; ss אופציונלי — כשהוא nil הבחירה נעשית כאן ב-ssget. הפרמטר קיים
+;;; כדי שבדיקה headless תוכל להזריק בחירה (ssget בחלון דורש תצוגה).
+(defun mg:cutwin (p1 p2 target scl ss / e0 e nss n nm base np1 np2 res)
+  (setq base (list (/ (+ (car p1) (car p2)) 2.0)
+                   (/ (+ (cadr p1) (cadr p2)) 2.0)))
+  (if (null ss) (setq ss (ssget "_C" p1 p2)))
   (if (null ss)
-    (progn (mg:warn "לא נמצאה גאומטריה לגזירה סביב המרחב") nil)
     (progn
+      (mg:warn "לא נמצאה גאומטריה בחלון שתחמת")
+      (princ "\n   ודא שכל האזור שתחמת מוצג על המסך — בחירה בחלון")
+      (princ "\n   פועלת רק על מה שנראה בתצוגה.")
+      nil)
+    (progn
+      (princ (strcat "\nנבחרו " (itoa (sslength ss)) " ישויות בחלון."))
       (setq e0 (entlast))
-      (vl-catch-all-apply 'vl-cmdf (list "_.COPY" ss "" base target))
-      ;; העותקים הם כל מה שנוצר אחרי e0
+      ;; ה-"" האחרון סוגר את COPY: הפקודה חוזרת על עצמה ומבקשת עוד
+      ;; עותקים, ובלי הסגירה היא נשארת פתוחה ושום דבר אחריה לא רץ.
+      (vl-catch-all-apply 'vl-cmdf (list "_.COPY" ss "" base target ""))
+      ;; העותקים = כל מה שנוסף אחרי e0
       (setq nss (ssadd) n 0)
       (setq e (if e0 (entnext e0) (entnext)))
-      (while e
-        (ssadd e nss) (setq n (1+ n))
-        (setq e (entnext e)))
-      (if (> n 0)
+      (while e (ssadd e nss) (setq n (1+ n)) (setq e (entnext e)))
+      (if (= n 0)
+        (progn (mg:warn "ההעתקה לא יצרה ישויות") nil)
         (progn
-          (if (/= scl 1.0)
-            (vl-catch-all-apply 'vl-cmdf (list "_.SCALE" nss "" target (rtos scl 2 6))))
+          (setq nm (mg:cutname))
+          ;; ‎-BLOCK מוחק את הנבחרים — אלה עותקים, המקור לא נגע
+          (vl-catch-all-apply 'vl-cmdf (list "_.-BLOCK" nm target nss ""))
           (vl-catch-all-apply 'vl-cmdf
-            (list "_.CHPROP" nss "" "_LA" (mg:lay "BASE") ""))))
-      (princ (strcat "\nנגזרו " (itoa n) " ישויות מהתוכנית."))
-      nss)))
+            (list "_.-INSERT" nm target (rtos scl 2 6) (rtos scl 2 6) "0"))
+          (setq res (entlast))
+          ;; גזירה למלבן שנתחם, מומר למיקום ולהגדלה החדשים
+          (setq np1 (mg:xf p1 base target scl)
+                np2 (mg:xf p2 base target scl))
+          (vl-catch-all-apply 'vl-cmdf
+            (list "_.XCLIP" res "" "_New" "_Rectangular" np1 np2))
+          (princ (strcat "\nנגזר " nm " — " (itoa n)
+                         " ישויות, הגדלה x" (rtos scl 2 2) "."))
+          res)))))
 
 ;;; ==================================================================
-;;;  MMDCUT — קליק אחד בתוך המרחב, והכלי גוזר אותו אל הנספח
+;;;  MMDCUT — תחום מסביב לממ"ד, והכלי גוזר אותו אל הנספח
 ;;; ==================================================================
-(defun c:MMDCUT ( / *error* sv vals pt wpts target scl bb ctr th i n msg)
+(defun c:MMDCUT ( / *error* sv vals p1 p2 target scl osm res)
   (setq sv (mg:sysvars) vals (mapcar 'getvar sv))
   (defun *error* (m)
     (mapcar '(lambda (a b) (vl-catch-all-apply 'setvar (list a b))) sv vals)
@@ -560,53 +605,40 @@
       (princ (strcat "\nMMDCUT: " m)))
     (princ))
 
-  (mg:mklayers) (mg:style)
-  (setvar "CMDECHO" 0)
-
-  (setq pt (getpoint "\nלחץ נקודה כלשהי בתוך המרחב המוגן: "))
-  (if (null pt) (exit))
-
-  (princ "\nמתחקה את קו הפנים...")
-  (setq wpts (mg:bpoly (mg:2d pt)))
-  (if (null wpts)
+  ;; חייבים להיות במרחב המודל. אם פעיל Layout, COPY פשוט לא מעתיק —
+  ;; בלי הודעת שגיאה, וקשה מאוד להבין למה כלום לא קורה. נבדק לפני
+  ;; הקליקים, כדי שלא לבזבז את התיחום.
+  (if (/= (getvar "TILEMODE") 1)
     (progn
-      (princ "\n!! לא הצלחתי לסגור את קו הפנים סביב הנקודה.")
-      (princ "\n   בדרך כלל הסיבה היא פתח דלת פתוח בקירות, או שהתצוגה")
-      (princ "\n   לא מראה את כל החדר. תקרב כך שכל החדר על המסך ונסה שוב.")
-      (mapcar '(lambda (a b) (vl-catch-all-apply 'setvar (list a b))) sv vals)
+      (princ (strcat "\n!! אתה נמצא בפריסה \"" (getvar "CTAB") "\" ולא במודל."))
+      (princ "\n   עבור ללשונית Model ונסה שוב — העתקה בין המרחבים")
+      (princ "\n   לא מתבצעת, והפקודה הייתה נראית כאילו לא עשתה כלום.")
       (exit)))
 
-  (setq bb (mg:bbox wpts))
-  (princ (strcat "\nנמצא מרחב בן " (itoa (length wpts)) " צלעות."))
-  (princ (strcat "\n  תיבה חוסמת : " (rtos (- (caddr bb) (car bb)) 2 1)
-                 " x " (rtos (- (cadddr bb) (cadr bb)) 2 1) " ס\"מ"))
-  (princ (strcat "\n  שטח נטו    : "
-                 (rtos (/ (abs (mg:sarea wpts)) 10000.0) 2 2) " מ\"ר"))
+  (mg:mklayers) (mg:style)
+  (setvar "CMDECHO" 0)
+  (setq osm (getvar "OSMODE"))
+  (setvar "OSMODE" 0)          ; תוחמים באוויר, בלי שההצמדה תקפיץ פינות
 
-  ;; עוביי הקירות נמדדים מהשרטוט, לא נשאלים
-  (princ "\nמודד עוביי קירות מהתוכנית...")
-  (setq th (mg:measure-th (car (mg:ccw wpts nil)) 0.0))
-  (setq i 0 msg "")
-  (foreach x th
-    (setq msg (strcat msg (if (= i 0) "" " / ")
-                      (if (> x 0.0) (rtos x 2 1) "?")))
-    (setq i (1+ i)))
-  (princ (strcat "\n  עוביים לפי צלע: " msg))
-  (princ "\n  (\"?\" = לא נמצא קו מנגד תוך 80 ס\"מ — קיר חיצוני או פתח)")
+  (princ "\nתחום מלבן סביב המרחב המוגן — קח מרווח, אפשר לגזור שוב.")
+  (setq p1 (getpoint "\n  פינה ראשונה: "))
+  (if (null p1) (progn (setvar "OSMODE" osm) (exit)))
+  (setq p2 (getcorner p1 "\n  פינה נגדית: "))
+  (if (null p2) (progn (setvar "OSMODE" osm) (exit)))
+  (setq p1 (mg:2d p1) p2 (mg:2d p2))
+  (princ (strcat "\nהחלון: " (rtos (abs (- (car p2) (car p1))) 2 1) " x "
+                 (rtos (abs (- (cadr p2) (cadr p1))) 2 1) " ס\"מ"))
 
   (setq scl (mg:getreal-def "הגדלה לנספח" *MG-CUTSCALE*))
-  (setq ctr (list (/ (+ (car bb) (caddr bb)) 2.0)
-                  (/ (+ (cadr bb) (cadddr bb)) 2.0)))
   (setq target (getpoint "\nאיפה למקם את הגזירה בנספח: "))
-  (if (null target)
-    (progn (mapcar '(lambda (a b) (vl-catch-all-apply 'setvar (list a b))) sv vals)
-           (exit)))
+  (if (null target) (progn (setvar "OSMODE" osm) (exit)))
 
-  (mg:cut wpts ctr (mg:2d target) scl 80.0)
-
+  (setq res (mg:cutwin p1 p2 (mg:2d target) scl nil))
+  (setvar "OSMODE" osm)
   (mapcar '(lambda (a b) (vl-catch-all-apply 'setvar (list a b))) sv vals)
-  (princ (strcat "\n=== הגזירה הונחה בהגדלה פי " (rtos scl 2 2)
-                 ". MMDDRAW יוסיף מידות ואבזור. ==="))
+  (if res
+    (princ "\n=== הגזירה בנספח. MMDDRAW יוסיף מידות ואבזור מעליה. ===")
+    (princ "\n=== לא נוצרה גזירה. ==="))
   (princ))
 
 ;;; שטח מסומן (shoelace). חיובי = נגד כיוון השעון.
