@@ -18,10 +18,10 @@
 (vl-load-com)
 
 ;;; ---------- הגדרות ----------
-;;; חותמת בנייה — build_lsp.py מחליף את 28b903b1 בחתימה של migun.lsp.src.
+;;; חותמת בנייה — build_lsp.py מחליף את cd5872c5 בחתימה של migun.lsp.src.
 ;;; אותו מקור ? אותה חותמת (אין "רעש" בגיט). אם MMDTEST מדפיס חותמת
 ;;; שונה מזו שבמקור — אוטוקאד טען קובץ ישן.
-(setq *MG-BUILD* "28b903b1")
+(setq *MG-BUILD* "cd5872c5")
 (setq *MG-PREFIX* "MIGUN-")
 (setq *MG-FONT*   "arial.ttf")
 (setq *MG-UNITS*  1.0)   ; 1.0 = השרטוט בס"מ ; 0.01 = השרטוט במטרים ; 10.0 = מ"מ
@@ -33,7 +33,13 @@
                     ("VENT" 6 "Continuous") ("DIM" 2 "Continuous")
                     ("TEXT" 7 "Continuous") ("TABLE" 7 "Continuous")
                     ("SECTION" 1 "Continuous") ("HIDDEN" 5 "HIDDEN2")
-                    ("MARK" 6 "DASHED2")))
+                    ("MARK" 6 "DASHED2") ("BASE" 8 "Continuous")))
+
+;;; פי כמה מגדילים את הגאומטריה הגזורה מהתוכנית.
+;;; תוכנית האדריכל משורטטת ומוצגת ב-1:100; הנספח ב-1:50 על אותו גיליון
+;;; ? הגדלה פי 2. המידות מקבלות DIMLFAC 0.5 כדי להציג את המידה האמיתית —
+;;; זה בדיוק הנוהג שנמצא בקובץ האדריכל (סגנון "L1-50", DIMLFAC=0.5).
+(setq *MG-CUTSCALE* 2.0)
 
 ;;; ---------- עזרי בסיס ----------
 (defun mg:lay (nm / e) (strcat *MG-PREFIX* nm))
@@ -426,6 +432,274 @@
 ;;;  MMDDRAW — יצירת הנספח
 ;;; ==================================================================
 
+;;; ==================================================================
+;;;  פוליגון — מרחב מוגן שאינו מלבני
+;;;  המשתמש (27.08.2026): "יש מלא ממ"דים שהם לא מלבנים".
+;;;  כל הציור עובד מעכשיו על פוליגון. מלבן הוא פשוט פוליגון בן 4 צלעות
+;;;  שנבנה מ-L/W/עוביים, כך שיש **מסלול קוד אחד בלבד** ורשומות ישנות
+;;;  ממשיכות לעבוד בלי המרה.
+;;; ==================================================================
+
+;;; ---------- קריאת הגאומטריה של האדריכל ----------
+;;; המשתמש (27.08.2026): "למה אני צריך לסמן את הקירות — תגזור את מה
+;;; שיש ותביא אותו לנספח". לכן: קליק אחד בתוך החדר, ואוטוקאד עצמו
+;;; מתחקה את קו הפנים דרך ‎-BOUNDARY. זה תופס נישות, כיסים וכל צורה
+;;; שהיא — בלי הנחת מלבן ובלי שהמשתמש יתווה שום דבר.
+
+;;; קודקודי LWPOLYLINE
+(defun mg:plpts (e / d pts)
+  (setq d (entget e) pts '())
+  (foreach x d (if (= (car x) 10) (setq pts (cons (mg:2d (cdr x)) pts))))
+  (reverse pts))
+
+;;; קו פנים של החדר שבו נמצאת הנקודה. מחזיר רשימת נקודות עולמית, או nil.
+;;; ה-BOUNDARY שנוצר נמחק — אנחנו רק קוראים ממנו.
+(defun mg:bpoly (pt / e0 e pts gt)
+  (setq e0 (entlast))
+  (setq gt (getvar "HPGAPTOL"))
+  ;; קווי אדריכל לא תמיד נפגשים בדיוק; בלי סובלנות ה-BOUNDARY נכשל
+  (vl-catch-all-apply 'setvar (list "HPGAPTOL" 10.0))
+  (vl-catch-all-apply 'vl-cmdf (list "_.-BOUNDARY" pt ""))
+  (vl-catch-all-apply 'setvar (list "HPGAPTOL" gt))
+  (setq e (entlast))
+  (if (and e (not (eq e e0)) (= (cdr (assoc 0 (entget e))) "LWPOLYLINE"))
+    (progn (setq pts (mg:plpts e)) (entdel e) pts)
+    nil))
+
+;;; זריקת קרן מנקודה בכיוון dir; מחזירה את המרחק למכשול הקרוב ביותר
+;;; מבין הישויות ב-ss, או nil. כך נמדד עובי הקיר בלי לשאול את המשתמש.
+(defun mg:ray (p dir maxd ss / q i e d segs s best x t1)
+  (setq q (list (+ (car p) (* (car dir) maxd)) (+ (cadr p) (* (cadr dir) maxd))))
+  (setq best nil i 0)
+  (if ss
+    (repeat (sslength ss)
+      (setq e (ssname ss i) i (1+ i))
+      (setq d (entget e))
+      (setq segs
+        (cond ((= (cdr (assoc 0 d)) "LINE")
+               (list (list (mg:2d (cdr (assoc 10 d))) (mg:2d (cdr (assoc 11 d))))))
+              ((= (cdr (assoc 0 d)) "LWPOLYLINE")
+               (mg:pairs (mg:plpts e) (= 1 (logand 1 (cdr (assoc 70 d))))))
+              (T nil)))
+      (foreach s segs
+        (setq x (inters p q (car s) (cadr s) T))
+        (if x
+          (progn (setq t1 (distance p x))
+                 (if (and (> t1 0.5) (or (null best) (< t1 best)))
+                   (setq best t1)))))))
+  best)
+
+;;; רשימת נקודות ? רשימת קטעים
+(defun mg:pairs (pts closed / n i out)
+  (setq n (length pts) i 0 out '())
+  (while (< i (1- n))
+    (setq out (cons (list (nth i pts) (nth (1+ i) pts)) out))
+    (setq i (1+ i)))
+  (if (and closed (> n 2))
+    (setq out (cons (list (nth (1- n) pts) (car pts)) out)))
+  (reverse out))
+
+;;; עובי כל צלע, נמדד מהשרטוט: מאמצע הצלע יוצאת קרן החוצה עד לקו הבא.
+;;; מה שלא נמדד מקבל את ברירת המחדל.
+(defun mg:measure-th (wpts def / n i p q mid dir nrm ss bb th d)
+  (setq n (length wpts) i 0 th '())
+  (while (< i n)
+    (setq p (nth i wpts) q (nth (rem (1+ i) n) wpts))
+    (setq mid (list (/ (+ (car p) (car q)) 2.0) (/ (+ (cadr p) (cadr q)) 2.0)))
+    (setq dir (vnorm (list (- (car q) (car p)) (- (cadr q) (cadr p)))))
+    (setq nrm (list (cadr dir) (- (car dir))))          ; ימינה = החוצה
+    (setq ss (ssget "_C"
+                    (list (- (car mid) 90.0) (- (cadr mid) 90.0))
+                    (list (+ (car mid) 90.0) (+ (cadr mid) 90.0))
+                    '((0 . "LINE,LWPOLYLINE"))))
+    (setq d (mg:ray mid nrm 80.0 ss))
+    (setq th (cons (if d (mg:round5 d) def) th))
+    (setq i (1+ i)))
+  (reverse th))
+
+;;; עיגול לחצי-סנטימטר הקרוב — קווי אדריכל אף פעם לא בדיוק על 25.000
+(defun mg:round5 (x) (/ (float (fix (+ (* x 2.0) 0.5))) 2.0))
+
+;;; העתקת הגאומטריה של האדריכל אל הנספח, בהגדלה.
+;;; מחזירה ssget של העותקים. הם מועברים לשכבת MIGUN-BASE כדי שהנספח
+;;; יהיה עצמאי ו-MMDWIPE ידע למחוק גם אותו.
+(defun mg:cut (wpts base target scl margin / bb p1 p2 ss e0 e nss n)
+  (setq bb (mg:bbox wpts))
+  (setq p1 (list (- (car bb) margin) (- (cadr bb) margin)))
+  (setq p2 (list (+ (caddr bb) margin) (+ (cadddr bb) margin)))
+  (setq ss (ssget "_C" p1 p2
+                  '((0 . "LINE,LWPOLYLINE,POLYLINE,ARC,CIRCLE,ELLIPSE,SPLINE,INSERT,HATCH,SOLID"))))
+  (if (null ss)
+    (progn (mg:warn "לא נמצאה גאומטריה לגזירה סביב המרחב") nil)
+    (progn
+      (setq e0 (entlast))
+      (vl-catch-all-apply 'vl-cmdf (list "_.COPY" ss "" base target))
+      ;; העותקים הם כל מה שנוצר אחרי e0
+      (setq nss (ssadd) n 0)
+      (setq e (if e0 (entnext e0) (entnext)))
+      (while e
+        (ssadd e nss) (setq n (1+ n))
+        (setq e (entnext e)))
+      (if (> n 0)
+        (progn
+          (if (/= scl 1.0)
+            (vl-catch-all-apply 'vl-cmdf (list "_.SCALE" nss "" target (rtos scl 2 6))))
+          (vl-catch-all-apply 'vl-cmdf
+            (list "_.CHPROP" nss "" "_LA" (mg:lay "BASE") ""))))
+      (princ (strcat "\nנגזרו " (itoa n) " ישויות מהתוכנית."))
+      nss)))
+
+;;; ==================================================================
+;;;  MMDCUT — קליק אחד בתוך המרחב, והכלי גוזר אותו אל הנספח
+;;; ==================================================================
+(defun c:MMDCUT ( / *error* sv vals pt wpts target scl bb ctr th i n msg)
+  (setq sv (mg:sysvars) vals (mapcar 'getvar sv))
+  (defun *error* (m)
+    (mapcar '(lambda (a b) (vl-catch-all-apply 'setvar (list a b))) sv vals)
+    (if (and m (not (wcmatch (strcase m) "*BREAK*,*CANCEL*,*QUIT*")))
+      (princ (strcat "\nMMDCUT: " m)))
+    (princ))
+
+  (mg:mklayers) (mg:style)
+  (setvar "CMDECHO" 0)
+
+  (setq pt (getpoint "\nלחץ נקודה כלשהי בתוך המרחב המוגן: "))
+  (if (null pt) (exit))
+
+  (princ "\nמתחקה את קו הפנים...")
+  (setq wpts (mg:bpoly (mg:2d pt)))
+  (if (null wpts)
+    (progn
+      (princ "\n!! לא הצלחתי לסגור את קו הפנים סביב הנקודה.")
+      (princ "\n   בדרך כלל הסיבה היא פתח דלת פתוח בקירות, או שהתצוגה")
+      (princ "\n   לא מראה את כל החדר. תקרב כך שכל החדר על המסך ונסה שוב.")
+      (mapcar '(lambda (a b) (vl-catch-all-apply 'setvar (list a b))) sv vals)
+      (exit)))
+
+  (setq bb (mg:bbox wpts))
+  (princ (strcat "\nנמצא מרחב בן " (itoa (length wpts)) " צלעות."))
+  (princ (strcat "\n  תיבה חוסמת : " (rtos (- (caddr bb) (car bb)) 2 1)
+                 " x " (rtos (- (cadddr bb) (cadr bb)) 2 1) " ס\"מ"))
+  (princ (strcat "\n  שטח נטו    : "
+                 (rtos (/ (abs (mg:sarea wpts)) 10000.0) 2 2) " מ\"ר"))
+
+  ;; עוביי הקירות נמדדים מהשרטוט, לא נשאלים
+  (princ "\nמודד עוביי קירות מהתוכנית...")
+  (setq th (mg:measure-th (car (mg:ccw wpts nil)) 0.0))
+  (setq i 0 msg "")
+  (foreach x th
+    (setq msg (strcat msg (if (= i 0) "" " / ")
+                      (if (> x 0.0) (rtos x 2 1) "?")))
+    (setq i (1+ i)))
+  (princ (strcat "\n  עוביים לפי צלע: " msg))
+  (princ "\n  (\"?\" = לא נמצא קו מנגד תוך 80 ס\"מ — קיר חיצוני או פתח)")
+
+  (setq scl (mg:getreal-def "הגדלה לנספח" *MG-CUTSCALE*))
+  (setq ctr (list (/ (+ (car bb) (caddr bb)) 2.0)
+                  (/ (+ (cadr bb) (cadddr bb)) 2.0)))
+  (setq target (getpoint "\nאיפה למקם את הגזירה בנספח: "))
+  (if (null target)
+    (progn (mapcar '(lambda (a b) (vl-catch-all-apply 'setvar (list a b))) sv vals)
+           (exit)))
+
+  (mg:cut wpts ctr (mg:2d target) scl 80.0)
+
+  (mapcar '(lambda (a b) (vl-catch-all-apply 'setvar (list a b))) sv vals)
+  (princ (strcat "\n=== הגזירה הונחה בהגדלה פי " (rtos scl 2 2)
+                 ". MMDDRAW יוסיף מידות ואבזור. ==="))
+  (princ))
+
+;;; שטח מסומן (shoelace). חיובי = נגד כיוון השעון.
+(defun mg:sarea (pts / n i a p q)
+  (setq n (length pts) i 0 a 0.0)
+  (while (< i n)
+    (setq p (nth i pts) q (nth (rem (1+ i) n) pts))
+    (setq a (+ a (- (* (car p) (cadr q)) (* (car q) (cadr p)))))
+    (setq i (1+ i)))
+  (/ a 2.0))
+
+;;; הפוליגון תמיד נגד כיוון השעון — כך "החוצה" הוא תמיד ימינה מכיוון הצלע
+(defun mg:ccw (pts th / )
+  (if (< (mg:sarea pts) 0.0)
+    ;; היפוך: הצלעות מתהפכות, ולכן גם רשימת העוביים מוסטת
+    (list (reverse pts)
+          (if th (reverse (cons (car th) (reverse (cdr th)))) th))
+    (list pts th)))
+
+;;; (pts th) לכל רשומה. רשומה ישנה (בלי nth 9) מסונתזת ממלבן.
+;;; סדר הצלעות במלבן: 0=דרום 1=מזרח 2=צפון 3=מערב
+(defun mg:poly (rec / pts th L W tt)
+  (if (setq pts (nth 9 rec))
+    (mg:ccw pts (nth 10 rec))
+    (progn
+      (setq L (nth 1 rec) W (nth 2 rec) tt (nth 4 rec))
+      (list (list (list 0.0 0.0) (list L 0.0) (list L W) (list 0.0 W))
+            (list (nth 2 tt) (nth 1 tt) (nth 0 tt) (nth 3 tt))))))
+
+;;; תיבה חוסמת של הפוליגון: (xmin ymin xmax ymax)
+(defun mg:bbox (pts / xs ys)
+  (setq xs (mapcar 'car pts) ys (mapcar 'cadr pts))
+  (list (apply 'min xs) (apply 'min ys) (apply 'max xs) (apply 'max ys)))
+
+;;; חיתוך שני ישרים אינסופיים p+t*r ו-q+s*w. nil כשהם מקבילים.
+(defun mg:xline (p r q w / d t1)
+  (setq d (- (* (car r) (cadr w)) (* (cadr r) (car w))))
+  (if (< (abs d) 1e-9)
+    nil
+    (progn
+      (setq t1 (/ (- (* (- (car q) (car p)) (cadr w))
+                     (* (- (cadr q) (cadr p)) (car w))) d))
+      (list (+ (car p) (* (car r) t1)) (+ (cadr p) (* (cadr r) t1))))))
+
+;;; הפוליגון החיצוני: כל צלע מוסטת החוצה בעובייה, והפינות הן חיתוך
+;;; הישרים המוסטים. כך פינות קמורות וקעורות יוצאות נכון גם כשהעוביים
+;;; שונים — בלי זה קירות בעובי שונה נחתכים זה בזה בפינה.
+(defun mg:outer (pts th / n i j o dir nrm p q res pi1 pj1 dj nj x)
+  (setq n (length pts) i 0 res '())
+  (while (< i n)
+    ;; פינה i היא מפגש צלע i-1 וצלע i
+    (setq j (rem (+ i (1- n)) n))                   ; הצלע הקודמת
+    (setq p (nth j pts) pi1 (nth (rem (1+ j) n) pts))
+    (setq dir (list (- (car pi1) (car p)) (- (cadr pi1) (cadr p))))
+    (setq nrm (vnorm (list (cadr dir) (- (car dir)))))   ; ימינה = החוצה
+    (setq p (list (+ (car p) (* (car nrm) (nth j th)))
+                  (+ (cadr p) (* (cadr nrm) (nth j th)))))
+    (setq q (nth i pts) pj1 (nth (rem (1+ i) n) pts))
+    (setq dj (list (- (car pj1) (car q)) (- (cadr pj1) (cadr q))))
+    (setq nj (vnorm (list (cadr dj) (- (car dj)))))
+    (setq q (list (+ (car q) (* (car nj) (nth i th)))
+                  (+ (cadr q) (* (cadr nj) (nth i th)))))
+    (setq x (mg:xline p dir q dj))
+    (setq res (cons (if x x q) res))
+    (setq i (1+ i)))
+  (reverse res))
+
+;;; הצללה של מצולע כלשהו בקווי 45° — הכללה של mg:hatch למרובעים נטויים
+(defun mg:hpoly (ly pts sp / bb x0 y0 x1 y1 step c cs xs n i p q d t1 t2 hits)
+  (setq bb (mg:bbox pts) x0 (car bb) y0 (cadr bb) x1 (caddr bb) y1 (cadddr bb))
+  (setq step (* sp (sqrt 2.0)))
+  (setq c (* step (float (fix (/ (- y0 x1) step)))))
+  (while (< c (- y1 x0))
+    ;; הישר y = x + c ; מוצאים חיתוכים עם צלעות המצולע
+    (setq hits '() n (length pts) i 0)
+    (while (< i n)
+      (setq p (nth i pts) q (nth (rem (1+ i) n) pts))
+      (setq d (- (- (cadr q) (car q)) (- (cadr p) (car p))))
+      (if (> (abs d) 1e-9)
+        (progn
+          (setq t1 (/ (- c (- (cadr p) (car p))) d))
+          (if (and (>= t1 -1e-9) (<= t1 1.000000001))
+            (setq hits (cons (+ (car p) (* t1 (- (car q) (car p)))) hits)))))
+      (setq i (1+ i)))
+    (setq hits (vl-sort hits '<))
+    (while (>= (length hits) 2)
+      (setq t1 (car hits) t2 (cadr hits))
+      (if (> (- t2 t1) 0.01)
+        (mg:line ly (list t1 (+ t1 c)) (list t2 (+ t2 c))))
+      (setq hits (cddr hits)))
+    (setq c (+ c step)))
+  nil)
+
 (defun mg:op-z (op)  ; טווח גבהים של פתח: (z0 z1)
   (cond ((= (car op) "win")  (list (nth 5 op) (+ (nth 5 op) (nth 4 op))))
         ((= (car op) "vent") (list (- (nth 5 op) (/ (nth 4 op) 2.0))
@@ -492,9 +766,20 @@
   (mg:dims rec ox oy)
   (mg:info rec ox oy th))
 
-;;; שטח נטו במ"ר ונפח נטו במ"ק — הקלט בס"מ
-(defun mg:area (rec) (/ (* (nth 1 rec) (nth 2 rec)) 10000.0))
-(defun mg:vol  (rec) (/ (* (nth 1 rec) (nth 2 rec) (nth 3 rec)) 1000000.0))
+;;; שטח נטו במ"ר ונפח נטו במ"ק — הקלט בס"מ.
+;;; מחושבים מהפוליגון, כך שממ"ד בצורת ר' מקבל את שטחו האמיתי ולא
+;;; את שטח התיבה החוסמת.
+(defun mg:area (rec) (/ (abs (mg:sarea (car (mg:poly rec)))) 10000.0))
+(defun mg:vol  (rec) (* (mg:area rec) (/ (nth 3 rec) 100.0)))
+
+;;; היקף פנים — זה ה-L של חישוב ירידת קירות ב-RULES.md
+(defun mg:perim (rec / pts n i p q s)
+  (setq pts (car (mg:poly rec)) n (length pts) i 0 s 0.0)
+  (while (< i n)
+    (setq p (nth i pts) q (nth (rem (1+ i) n) pts))
+    (setq s (+ s (distance p q)))
+    (setq i (1+ i)))
+  s)
 
 ;;; עובי המילוי/ריצוף. נשמר בסוף הרשומה, כך שרשומות ישנות (בלי השדה)
 ;;; עדיין נטענות — nth מחזיר nil ואז נופלים לברירת המחדל.
@@ -883,7 +1168,8 @@
 ;;;  הדוח באנגלית בכוונה: אם העברית משובשת והאנגלית קריאה,
 ;;;  הבעיה היא בקידוד ולא בכלי.
 ;;; ==================================================================
-(defun c:MMDTEST ( / *error* sv vals saved n0 n1 ok units fp r1)
+(defun c:MMDTEST ( / *error* sv vals saved n0 n1 ok units fp r1
+                     rL lpts c opts obb ew eh)
   (setq sv (mg:sysvars) vals (mapcar 'getvar sv))
   (defun *error* (m)
     (mapcar '(lambda (n v) (vl-catch-all-apply 'setvar (list n v))) sv vals)
@@ -959,6 +1245,55 @@
     (princ "\n  [ok]   explicit fill read from record")
     (progn (setq ok nil) (princ "\n  [FAIL] explicit fill lookup")))
 
+  ;; ---- מנוע הפוליגון, על ממ"ד בצורת ר' ----
+  ;; 400x300 ועוד 200x200 = 16.00 מ"ר, היקף 18.00 מ', נפח 40.00 מ"ק
+  (setq lpts (list '(0.0 0.0) '(400.0 0.0) '(400.0 300.0)
+                   '(200.0 300.0) '(200.0 500.0) '(0.0 500.0)))
+  (setq rL (list "L-SHAPE" 400.0 500.0 250.0 '(25.0 25.0 25.0 25.0) 20.0 15.0
+                 nil 7.0 lpts '(25.0 25.0 20.0 20.0 25.0 30.0)))
+  (foreach c (list
+      (list "polygon area   16.00 m2" (mg:area rL)  16.0)
+      (list "polygon volume 40.00 m3" (mg:vol  rL)  40.0)
+      (list "polygon perim  1800 cm"  (mg:perim rL) 1800.0))
+    (if (equal (cadr c) (caddr c) 0.005)
+      (princ (strcat "\n  [ok]   " (car c)))
+      (progn (setq ok nil)
+             (princ (strcat "\n  [FAIL] " (car c) " got "
+                            (rtos (cadr c) 2 3))))))
+  ;; כיוון: הפוליגון חייב לצאת נגד כיוון השעון גם אם הוזן הפוך
+  (if (> (mg:sarea (car (mg:ccw (reverse lpts) nil))) 0.0)
+    (princ "\n  [ok]   reversed polygon is re-oriented CCW")
+    (progn (setq ok nil) (princ "\n  [FAIL] mg:ccw did not re-orient")))
+  ;; מלבן ישן חייב להיקרא כפוליגון בן 4 צלעות עם אותו שטח
+  (if (and (= 4 (length (car (mg:poly r1))))
+           (equal (mg:area r1) 7.8 0.005))
+    (princ "\n  [ok]   legacy rectangle reads as a 4-edge polygon")
+    (progn (setq ok nil) (princ "\n  [FAIL] rectangle->polygon")))
+  ;; פוליגון חיצוני: התיבה החיצונית חייבת להיות פנים + עובי משני הצדדים.
+  ;; הציפייה נגזרת מהרשומה ולא נכתבת כמספר — כך היא לא מתיישנת אם
+  ;; ה-fixture משתנה. (טעות שלי בגרסה הראשונה: כתבתי 310 בעוד שקיר
+  ;; הדרום ב-TEST-1 הוא 20 ולא 25, כלומר 305. הבדיקה תפסה את זה.)
+  (setq opts (mg:outer (car (mg:poly r1)) (cadr (mg:poly r1))))
+  (setq obb (mg:bbox opts))
+  (setq ew (+ (nth 1 r1) (nth 1 (nth 4 r1)) (nth 3 (nth 4 r1))))
+  (setq eh (+ (nth 2 r1) (nth 0 (nth 4 r1)) (nth 2 (nth 4 r1))))
+  (if (and (equal (- (caddr obb) (car obb)) ew 0.01)
+           (equal (- (cadddr obb) (cadr obb)) eh 0.01))
+    (princ (strcat "\n  [ok]   outer polygon offsets/miters ("
+                   (rtos ew 2 0) " x " (rtos eh 2 0) ")"))
+    (progn (setq ok nil)
+           (princ (strcat "\n  [FAIL] outer bbox "
+                          (rtos (- (caddr obb) (car obb)) 2 2) " x "
+                          (rtos (- (cadddr obb) (cadr obb)) 2 2)
+                          " expected " (rtos ew 2 2) " x " (rtos eh 2 2)))))
+  ;; ופוליגון קעור: בצורת ר' התיבה החיצונית מתרחבת בעובי הצלעות הקיצוניות
+  (setq opts (mg:outer (car (mg:poly rL)) (cadr (mg:poly rL))))
+  (if (= (length opts) 6)
+    (princ "\n  [ok]   concave polygon keeps all 6 corners")
+    (progn (setq ok nil)
+           (princ (strcat "\n  [FAIL] concave outer has "
+                          (itoa (length opts)) " corners, expected 6"))))
+
   ;; חזרה למצב הקודם
   (setq *MMD-LIST* saved)
   (mapcar '(lambda (n v) (vl-catch-all-apply 'setvar (list n v))) sv vals)
@@ -1019,6 +1354,7 @@
 
 (princ (strcat "\n=== MIGUN.LSP נטען   (build " *MG-BUILD* ") ==="))
 (princ "\n  >>> חדש כאן? הקלד  MMDTEST  לבדיקה עצמית ללא קליקים <<<")
+(princ "\n  MMDCUT — קליק אחד בתוך המרחב: גוזר אותו מהתוכנית אל הנספח")
 (princ "\n  MMD — סימון מרחב מוגן | MMDDRAW — יצירת נספח | MMDDETAILS — פרטי פתחים")
 (princ "\n  MMDLIB — ספריית בלוקים | MMDTEST — בדיקה | MMDWIPE — מחיקת מה שצוייר")
 (princ "\n  MMDLIST | MMDDEL | MMDCLR")
