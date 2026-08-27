@@ -8,6 +8,8 @@
 ;;;    MMDLIST  רשימת המרחבים שנאספו
 ;;;    MMDDEL   מחיקת מרחב מהרשימה
 ;;;    MMDCLR   ניקוי הרשימה כולה
+;;;    MMDTEST  בדיקה עצמית ללא קליקים — מצייר נספח הדגמה + דוח תקינות
+;;;    MMDWIPE  מחיקת כל מה שהכלי צייר
 ;;;
 ;;;  הנתונים נשמרים בתוך קובץ ה-DWG (named object dictionary),
 ;;;  כך שאפשר לסגור ולהמשיך אחר כך.
@@ -667,44 +669,29 @@
   "\U+05DB\U+05DC \U+05E1\U+05D8\U+05D9\U+05D9\U+05D4 \U+05DE\U+05D4\U+05DE\U+05E1\U+05D5\U+05DE\U+05DF \U+05D1\U+05E0\U+05E1\U+05E4\U+05D7 \U+05D6\U+05D4 \U+05D8\U+05E2\U+05D5\U+05E0\U+05D4 \U+05D0\U+05D9\U+05E9\U+05D5\U+05E8 \U+05DE\U+05D5\U+05E7\U+05D3\U+05DD \U+05E9\U+05DC \U+05D9\U+05D5\U+05E2\U+05E5 \U+05D4\U+05DE\U+05D9\U+05D2\U+05D5\U+05DF."))
 
 ;;; ---------- MMDDRAW ----------
-(defun c:MMDDRAW ( / *error* sv vals p0 x0 y0 th r wsum wmax gap hatch? scl
-                    maxw rowh secy tw)
-  (setq sv '("CMDECHO" "OSMODE" "BLIPMODE" "CLAYER" "TEXTSTYLE"
-             "DIMSCALE" "DIMTXT" "DIMASZ" "DIMDEC" "DIMLFAC" "DIMTAD"
-             "DIMTIH" "DIMTOH" "DIMEXE" "DIMEXO" "DIMGAP" "DIMBLK" "DIMSAH"))
-  (setq vals (mapcar 'getvar sv))
-  (defun *error* (m)
-    (mapcar '(lambda (n v) (vl-catch-all-apply 'setvar (list n v))) sv vals)
-    (if (and m (not (wcmatch (strcase m) "*BREAK*,*CANCEL*,*QUIT*")))
-      (princ (strcat "\nMMDDRAW: " m)))
-    (princ))
+(defun mg:sysvars () '("CMDECHO" "OSMODE" "BLIPMODE" "CLAYER" "TEXTSTYLE"
+    "DIMSCALE" "DIMTXT" "DIMASZ" "DIMDEC" "DIMLFAC" "DIMTAD"
+    "DIMTIH" "DIMTOH" "DIMEXE" "DIMEXO" "DIMGAP" "DIMBLK" "DIMSAH"))
 
-  (if (null *MMD-LIST*) (mg:load))
-  (if (null *MMD-LIST*)
-    (progn (princ "\nאין מרחבים ברשימה — הפעל MMD קודם.") (exit)))
-
-  (mg:mklayers) (mg:style)
-  (setq p0 (getpoint "\nנקודת בסיס לנספח (פינה ימנית-תחתונה): "))
-  (if (null p0) (exit))
-  (setq scl (getreal "\nקנה מידה 1:<50>: "))
-  (if (null scl) (setq scl 50.0))
-
+(defun mg:setup (scl)
   (setvar "CMDECHO" 0) (setvar "OSMODE" 0) (setvar "BLIPMODE" 0)
   (setvar "TEXTSTYLE" (strcat *MG-PREFIX* "TXT"))
-  (setq th (* 0.25 scl))  ; טקסט 2.5 מ"מ בנייר
   (setvar "DIMSCALE" scl) (setvar "DIMTXT" 0.25)
   (setvar "DIMASZ" 0.25) (setvar "DIMEXE" 0.12) (setvar "DIMEXO" 0.1)
   (setvar "DIMGAP" 0.08) (setvar "DIMDEC" 0) (setvar "DIMLFAC" 1.0)
   (setvar "DIMTAD" 1) (setvar "DIMTIH" 0) (setvar "DIMTOH" 0) (setvar "DIMSAH" 0)
-  (vl-catch-all-apply 'setvar (list "DIMBLK" "_ARCHTICK"))
+  (vl-catch-all-apply 'setvar (list "DIMBLK" "_ARCHTICK")))
 
-  (setq hatch? T)
-  (setq gap (* 1.2 scl))
+;;; ציור כל הנספח. p0 = פינה ימנית-תחתונה, scl = מכנה קנה המידה
+(defun mg:drawall (p0 scl / x0 y0 th r gap hatch? maxw rowh secy tw)
+  (mg:mklayers) (mg:style) (mg:setup scl)
+  (setq th (* 0.25 scl))          ; טקסט 2.5 מ"מ בנייר
+  (setq hatch? T  gap (* 1.2 scl))
 
-  ;; שורת תוכניות משמאל לימין — מתחילים בנקודת הבסיס והולכים שמאלה
+  ;; שורת תוכניות — מנקודת הבסיס שמאלה
   (setq x0 (car p0) y0 (cadr p0) maxw 0.0)
   (foreach r *MMD-LIST*
-    (setq tw (+ (nth 1 r) (nth 1 (nth 4 r)) (nth 3 (nth 4 r))))  ; רוחב חוץ
+    (setq tw (+ (nth 1 r) (nth 1 (nth 4 r)) (nth 3 (nth 4 r))))
     (setq x0 (- x0 tw (* 0.6 gap)))
     (mg:plan r x0 (+ y0 (* 1.6 gap)) th hatch?)
     (mg:text "TEXT" (list (+ x0 (/ (nth 1 r) 2.0))
@@ -724,10 +711,118 @@
 
   ;; טבלה והערות מימין לנקודת הבסיס
   (setq rowh (mg:table (+ (car p0) (* 14.0 gap)) y0 th))
-  (mg:notes (+ (car p0) (* 14.0 gap)) (- y0 rowh (* 6.0 th)) th)
+  (mg:notes (+ (car p0) (* 14.0 gap)) (- y0 rowh (* 6.0 th)) th))
+
+(defun c:MMDDRAW ( / *error* sv vals p0 scl)
+  (setq sv (mg:sysvars) vals (mapcar 'getvar sv))
+  (defun *error* (m)
+    (mapcar '(lambda (n v) (vl-catch-all-apply 'setvar (list n v))) sv vals)
+    (if (and m (not (wcmatch (strcase m) "*BREAK*,*CANCEL*,*QUIT*")))
+      (princ (strcat "\nMMDDRAW: " m)))
+    (princ))
+
+  (if (null *MMD-LIST*) (mg:load))
+  (if (null *MMD-LIST*)
+    (progn (princ "\nאין מרחבים ברשימה — הפעל MMD קודם.") (exit)))
+
+  (setq p0 (getpoint "\nנקודת בסיס לנספח (פינה ימנית-תחתונה): "))
+  (if (null p0) (exit))
+  (setq scl (getreal "\nקנה מידה 1:<50>: "))
+  (if (null scl) (setq scl 50.0))
+
+  (mg:drawall p0 scl)
 
   (mapcar '(lambda (n v) (vl-catch-all-apply 'setvar (list n v))) sv vals)
   (princ (strcat "\n=== הנספח נוצר: " (itoa (length *MMD-LIST*)) " מרחבים ==="))
+  (princ))
+
+;;; ==================================================================
+;;;  MMDTEST — בדיקה עצמית, אפס קליקים
+;;;  מצייר נספח הדגמה ומדפיס דוח תקינות דו-לשוני.
+;;;  הדוח באנגלית בכוונה: אם העברית משובשת והאנגלית קריאה,
+;;;  הבעיה היא בקידוד ולא בכלי.
+;;; ==================================================================
+(defun c:MMDTEST ( / *error* sv vals saved n0 n1 ok units)
+  (setq sv (mg:sysvars) vals (mapcar 'getvar sv))
+  (defun *error* (m)
+    (mapcar '(lambda (n v) (vl-catch-all-apply 'setvar (list n v))) sv vals)
+    (princ (strcat "\n[FAIL] MMDTEST: " (if m m "?")))
+    (princ))
+
+  (princ "\n")
+  (princ "\n============================================================")
+  (princ "\n  MIGUN SELF-TEST  /  בדיקה עצמית")
+  (princ "\n============================================================")
+  (princ (strcat "\n  AutoCAD    : " (getvar "ACADVER")))
+  (setq units (getvar "INSUNITS"))
+  (princ (strcat "\n  INSUNITS   : " (itoa units) "  "
+                 (cond ((= units 4) "= CENTIMETERS  <-- expected / כצפוי")
+                       ((= units 5) "= MILLIMETERS  <-- see note below")
+                       ((= units 6) "= METERS       <-- see note below")
+                       ((= units 0) "= UNITLESS (probably fine / כנראה תקין)")
+                       (T "= other"))))
+  (princ (strcat "\n  Drawing    : " (getvar "DWGNAME")))
+
+  ;; שמירת רשימה קיימת והחלפתה בנתוני הדגמה
+  (setq saved *MMD-LIST*)
+  (setq *MMD-LIST* (list
+    ;; (id L W H (tN tE tS tW) tCeil tFloor ((type side off w h sill hinge type)...))
+    (list "TEST-1" 300.0 260.0 250.0 (list 25.0 25.0 20.0 25.0) 20.0 15.0
+      (list (list "door" "S"  40.0  80.0 200.0   0.0 "A" "1")
+            (list "win"  "N" 100.0 100.0 100.0 105.0 "A")
+            (list "vent" "N" 240.0  20.0  20.0 190.0 "A")))
+    (list "TEST-2" 340.0 280.0 250.0 (list 30.0 25.0 25.0 25.0) 20.0 15.0
+      (list (list "door" "W"  60.0  80.0 200.0   0.0 "B" "1")
+            (list "win"  "E" 120.0 100.0 100.0 105.0 "A")))))
+
+  (setq n0 (if (entlast) 1 0))
+  (princ "\n  Drawing demo annex at 0,0 ... / מצייר נספח הדגמה")
+  (mg:drawall '(0.0 0.0 0.0) 50.0)
+
+  ;; בדיקות
+  (princ "\n------------------------------------------------------------")
+  (setq ok T)
+  (foreach nm '("WALL" "DOOR" "WINDOW" "VENT" "DIM" "TEXT" "TABLE" "SECTION")
+    (if (tblsearch "LAYER" (strcat *MG-PREFIX* nm))
+      (princ (strcat "\n  [ok]   layer " *MG-PREFIX* nm))
+      (progn (setq ok nil)
+             (princ (strcat "\n  [FAIL] layer " *MG-PREFIX* nm " missing")))))
+  (if (tblsearch "STYLE" (strcat *MG-PREFIX* "TXT"))
+    (princ (strcat "\n  [ok]   text style " *MG-PREFIX* "TXT (" *MG-FONT* ")"))
+    (progn (setq ok nil) (princ "\n  [FAIL] text style missing")))
+
+  ;; חזרה למצב הקודם
+  (setq *MMD-LIST* saved)
+  (mapcar '(lambda (n v) (vl-catch-all-apply 'setvar (list n v))) sv vals)
+
+  (vl-catch-all-apply 'command (list "_.ZOOM" "_E"))
+
+  (princ "\n------------------------------------------------------------")
+  (if ok
+    (progn
+      (princ "\n  RESULT: PASS")
+      (princ "\n  You should now SEE on screen:")
+      (princ "\n    - 2 protected-space plans, hatched walls, door arc, window")
+      (princ "\n    - 2 sections below them")
+      (princ "\n    - a summary table + numbered notes on the right")
+      (princ "\n  אם אתה רואה את כל אלה — הכלי עובד.")
+      (princ "\n  Hebrew above garbled but English readable? tell me - encoding only.")
+      (princ "\n  To erase the demo:  MMDWIPE"))
+    (princ "\n  RESULT: FAIL - send me this whole text (F2 to copy)"))
+  (princ "\n============================================================")
+  (princ))
+
+;;; ==================================================================
+;;;  MMDWIPE — מחיקת כל מה שהכלי צייר (שכבות MIGUN-*)
+;;; ==================================================================
+(defun c:MMDWIPE ( / ss i n)
+  (setq n 0)
+  (foreach rec *MG-LAYERS*
+    (if (setq ss (ssget "_X" (list (cons 8 (strcat *MG-PREFIX* (car rec))))))
+      (repeat (setq i (sslength ss))
+        (entdel (ssname ss (setq i (1- i))))
+        (setq n (1+ n)))))
+  (princ (strcat "\nנמחקו " (itoa n) " ישויות / erased " (itoa n) " entities."))
   (princ))
 
 ;;; ---------- עזרי ניהול ----------
@@ -755,6 +850,8 @@
   (princ))
 
 (princ "\n=== MIGUN.LSP נטען ===")
+(princ "\n  >>> חדש כאן? הקלד  MMDTEST  לבדיקה עצמית ללא קליקים <<<")
 (princ "\n  MMD — סימון מרחב מוגן | MMDDRAW — יצירת נספח | MMDDETAILS — פרטי פתחים")
-(princ "\n  MMDLIB — טעינת ספריית בלוקים | MMDLIST | MMDDEL | MMDCLR")
+(princ "\n  MMDLIB — ספריית בלוקים | MMDTEST — בדיקה | MMDWIPE — מחיקת מה שצוייר")
+(princ "\n  MMDLIST | MMDDEL | MMDCLR")
 (princ)
