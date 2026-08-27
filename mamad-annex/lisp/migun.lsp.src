@@ -18,6 +18,10 @@
 (vl-load-com)
 
 ;;; ---------- הגדרות ----------
+;;; חותמת בנייה — build_lsp.py מחליף את @@BUILD@@ בחתימה של migun.lsp.src.
+;;; אותו מקור ⇒ אותה חותמת (אין "רעש" בגיט). אם MMDTEST מדפיס חותמת
+;;; שונה מזו שבמקור — אוטוקאד טען קובץ ישן.
+(setq *MG-BUILD* "@@BUILD@@")
 (setq *MG-PREFIX* "MIGUN-")
 (setq *MG-FONT*   "arial.ttf")
 (setq *MG-UNITS*  1.0)   ; 1.0 = השרטוט בס"מ ; 0.01 = השרטוט במטרים ; 10.0 = מ"מ
@@ -742,7 +746,7 @@
 ;;;  הדוח באנגלית בכוונה: אם העברית משובשת והאנגלית קריאה,
 ;;;  הבעיה היא בקידוד ולא בכלי.
 ;;; ==================================================================
-(defun c:MMDTEST ( / *error* sv vals saved n0 n1 ok units)
+(defun c:MMDTEST ( / *error* sv vals saved n0 n1 ok units fp)
   (setq sv (mg:sysvars) vals (mapcar 'getvar sv))
   (defun *error* (m)
     (mapcar '(lambda (n v) (vl-catch-all-apply 'setvar (list n v))) sv vals)
@@ -754,6 +758,10 @@
   (princ "\n  MIGUN SELF-TEST  /  בדיקה עצמית")
   (princ "\n============================================================")
   (princ (strcat "\n  AutoCAD    : " (getvar "ACADVER")))
+  (princ (strcat "\n  Build      : " *MG-BUILD*
+                 "   <-- must match migun.lsp.src / חייב להתאים למקור"))
+  (princ (strcat "\n  Found at   : "
+                 (if (setq fp (findfile "migun.lsp")) fp "(not on search path)")))
   (setq units (getvar "INSUNITS"))
   (princ (strcat "\n  INSUNITS   : " (itoa units) "  "
                  (cond ((= units 4) "= CENTIMETERS  <-- expected / כצפוי")
@@ -849,7 +857,7 @@
   (princ "\nהרשימה נוקתה.")
   (princ))
 
-(princ "\n=== MIGUN.LSP נטען ===")
+(princ (strcat "\n=== MIGUN.LSP נטען   (build " *MG-BUILD* ") ==="))
 (princ "\n  >>> חדש כאן? הקלד  MMDTEST  לבדיקה עצמית ללא קליקים <<<")
 (princ "\n  MMD — סימון מרחב מוגן | MMDDRAW — יצירת נספח | MMDDETAILS — פרטי פתחים")
 (princ "\n  MMDLIB — ספריית בלוקים | MMDTEST — בדיקה | MMDWIPE — מחיקת מה שצוייר")

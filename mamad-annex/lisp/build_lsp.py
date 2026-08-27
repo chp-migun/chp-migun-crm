@@ -12,7 +12,7 @@ build_lsp.py — בונה את migun.lsp מתוך migun.lsp.src
 
 שימוש:  python3 build_lsp.py
 """
-import io, re, sys, os
+import io, re, sys, os, hashlib
 
 SRC = os.path.join(os.path.dirname(__file__), 'migun.lsp.src')
 DST = os.path.join(os.path.dirname(__file__), 'migun.lsp')
@@ -35,6 +35,14 @@ def to_u_escapes(m):
 
 def main():
     s = io.open(SRC, encoding='utf-8').read()
+
+    # חותמת בנייה: 8 תווים מתוך SHA-256 של המקור.
+    # דטרמיניסטית — אותו מקור נותן אותה חותמת, כך שאין diff מיותר בגיט,
+    # ובכל זאת אפשר לוודא באוטוקאד שנטענה הגרסה הנכונה.
+    if '@@BUILD@@' not in s:
+        sys.exit('build stamp placeholder @@BUILD@@ missing from src')
+    stamp = hashlib.sha256(s.encode('utf-8')).hexdigest()[:8]
+    s = s.replace('@@BUILD@@', stamp)
 
     # (hs "...") → מחרוזת עם \U+ escapes
     s = re.sub(r'\(hs\s+"((?:[^"\\]|\\.)*)"\)', to_u_escapes, s)
@@ -61,6 +69,7 @@ def main():
     io.open(DST, 'wb').write(data)
     n_u = s.count('\\U+')
     print(f'OK: {DST}  ({len(data):,} bytes, {n_u} \\U+ escapes, parens balanced)')
+    print(f'    build stamp: {stamp}   <-- MMDTEST must print this')
 
 if __name__ == '__main__':
     main()
