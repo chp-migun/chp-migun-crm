@@ -18,10 +18,10 @@
 (vl-load-com)
 
 ;;; ---------- הגדרות ----------
-;;; חותמת בנייה — build_lsp.py מחליף את 1f4a1a47 בחתימה של migun.lsp.src.
+;;; חותמת בנייה — build_lsp.py מחליף את 6ab8ea96 בחתימה של migun.lsp.src.
 ;;; אותו מקור ? אותה חותמת (אין "רעש" בגיט). אם MMDTEST מדפיס חותמת
 ;;; שונה מזו שבמקור — אוטוקאד טען קובץ ישן.
-(setq *MG-BUILD* "1f4a1a47")
+(setq *MG-BUILD* "6ab8ea96")
 (setq *MG-PREFIX* "MIGUN-")
 (setq *MG-FONT*   "arial.ttf")
 (setq *MG-UNITS*  1.0)   ; 1.0 = השרטוט בס"מ ; 0.01 = השרטוט במטרים ; 10.0 = מ"מ
@@ -36,10 +36,13 @@
                     ("MARK" 6 "DASHED2") ("BASE" 8 "Continuous")))
 
 ;;; פי כמה מגדילים את הגאומטריה הגזורה מהתוכנית.
-;;; תוכנית האדריכל משורטטת ומוצגת ב-1:100; הנספח ב-1:50 על אותו גיליון
-;;; ? הגדלה פי 2. המידות מקבלות DIMLFAC 0.5 כדי להציג את המידה האמיתית —
-;;; זה בדיוק הנוהג שנמצא בקובץ האדריכל (סגנון "L1-50", DIMLFAC=0.5).
-(setq *MG-CUTSCALE* 2.0)
+;;; **1.0 — הגאומטריה נשארת בגודל אמיתי.** החלטת המשתמש, 27.08.2026:
+;;; "רק בהדפסה נעשה את זה בהגדרה בלייאאוט". כלומר קנה המידה 1:50 נקבע
+;;; בקנה המידה של הוויופורט בפריסה, לא בהגדלת השרטוט.
+;;; יתרון: מידה שנמדדת בשרטוט היא המידה האמיתית, בלי DIMLFAC ובלי
+;;; לזכור פי כמה הוכפל מה. הפרמטר נשאר ניתן לשינוי בפקודה למקרה
+;;; שבכל זאת יידרש פרט בהגדלה.
+(setq *MG-CUTSCALE* 1.0)
 
 ;;; ---------- עזרי בסיס ----------
 (defun mg:lay (nm / e) (strcat *MG-PREFIX* nm))
@@ -593,6 +596,203 @@
           (princ (strcat "\nנגזר " nm " — " (itoa n)
                          " ישויות, הגדלה x" (rtos scl 2 2) "."))
           res)))))
+
+;;; ==================================================================
+;;;  MMDDIM — מידות, שטח ונפח מעל גזירה קיימת
+;;;  לוחצים פעם אחת בתוך המרחב, אוטוקאד מתחקה את קו הפנים, והכלי
+;;;  מודד ומסמן. הכל נמדד על הגזירה המוגדלת ומוצג בערכים אמיתיים:
+;;;  DIMLFAC = 1/הגדלה למידות, ושטח/נפח מחולקים בריבוע ההגדלה.
+;;; ==================================================================
+(defun mg:dimpoly (pts scl id H th / n i p q mid dir nrm ins ctr bb
+                   a v inw d1 lab)
+  (setq n (length pts))
+  (setq bb (mg:bbox pts))
+  (setq ctr (list (/ (+ (car bb) (caddr bb)) 2.0)
+                  (/ (+ (cadr bb) (cadddr bb)) 2.0)))
+  (setq d1 (* 0.10 (min (- (caddr bb) (car bb)) (- (cadddr bb) (cadr bb)))))
+  ;; מידת פנים לכל צלע, קו המידה בתוך החדר
+  (setq i 0)
+  (while (< i n)
+    (setq p (nth i pts) q (nth (rem (1+ i) n) pts))
+    (setq mid (list (/ (+ (car p) (car q)) 2.0) (/ (+ (cadr p) (cadr q)) 2.0)))
+    (setq dir (vnorm (list (- (car q) (car p)) (- (cadr q) (cadr p)))))
+    (setq nrm (list (- (cadr dir)) (car dir)))       ; שמאלה = פנימה ב-CCW
+    (setq ins (list (+ (car mid) (* (car nrm) d1)) (+ (cadr mid) (* (cadr nrm) d1))))
+    (mg:dimal p q ins)
+    ;; מידת עובי הקיר, אם נמדדה
+    (if (and th (nth i th) (> (nth i th) 0.0))
+      (progn
+        (setq v (list (- (car nrm)) (- (cadr nrm))))
+        (mg:dimal mid
+                  (list (+ (car mid) (* (car v) (nth i th)))
+                        (+ (cadr mid) (* (cadr v) (nth i th))))
+                  (list (+ (car mid) (* (car v) (* 0.5 (nth i th))))
+                        (+ (cadr mid) (* (cadr v) (* 0.5 (nth i th))))))))
+    (setq i (1+ i)))
+  ;; שם, שטח ונפח — בערכים אמיתיים
+  (setq a (/ (abs (mg:sarea pts)) (* 10000.0 scl scl)))
+  (setq lab (* 0.035 (min (- (caddr bb) (car bb)) (- (cadddr bb) (cadr bb)))))
+  (mg:text "TEXT" (list (car ctr) (+ (cadr ctr) (* lab 1.9))) (* lab 1.5) id 1 0)
+  (mg:text "TEXT" (list (car ctr) (+ (cadr ctr) (* lab 0.1))) lab
+           (strcat (rtos a 2 2) " \U+05DE\"\U+05E8") 1 0)
+  (if (and H (> H 0.0))
+    (mg:text "TEXT" (list (car ctr) (- (cadr ctr) (* lab 1.6))) lab
+             (strcat (rtos (* a (/ H 100.0)) 2 2) " \U+05DE\"\U+05E7") 1 0))
+  a)
+
+(defun c:MMDDIM ( / *error* sv vals pt wpts scl id H obj ss i e n
+                    th p q mid dir nrm d a bb)
+  (setq sv (mg:sysvars) vals (mapcar 'getvar sv))
+  (defun *error* (m)
+    (mapcar '(lambda (x y) (vl-catch-all-apply 'setvar (list x y))) sv vals)
+    (if (and m (not (wcmatch (strcase m) "*BREAK*,*CANCEL*,*QUIT*")))
+      (princ (strcat "\nMMDDIM: " m)))
+    (princ))
+
+  (if (/= (getvar "TILEMODE") 1)
+    (progn (princ "\n!! עבור ללשונית Model.") (exit)))
+  (mg:mklayers) (mg:style)
+  (setvar "CMDECHO" 0)
+
+  (setq pt (getpoint "\nלחץ בתוך המרחב המוגן שבגזירה: "))
+  (if (null pt) (exit))
+  (setq pt (mg:2d pt))
+
+  (princ "\nמתחקה את קו הפנים...")
+  (setq wpts (mg:bpoly pt))
+  (if (null wpts)
+    (progn
+      (princ "\n!! לא הצלחתי לסגור קו פנים סביב הנקודה.")
+      (princ "\n   הסיבה הרגילה: פתח דלת שמשאיר פרצה בקירות, או שהחדר")
+      (princ "\n   לא כולו על המסך. תקרב לגזירה ונסה שוב.")
+      (exit)))
+  (princ (strcat "\n  קו גולמי: " (itoa (length wpts)) " צלעות"))
+
+  (setq scl (mg:getreal-def "הגדלה של הגזירה" *MG-CUTSCALE*))
+  ;; ניקוי: קטע קצר מ-15 ס"מ אמיתיים, וזווית עד 4 מעלות
+  (setq wpts (mg:simplify wpts (* 15.0 scl) (/ (* 4.0 pi) 180.0)))
+  (setq wpts (car (mg:ccw wpts nil)))
+  (princ (strcat "\n  אחרי ניקוי: " (itoa (length wpts)) " צלעות"))
+  (if (< (length wpts) 3)
+    (progn (princ "\n!! לא נשארו מספיק צלעות.") (exit)))
+
+  (setq bb (mg:bbox wpts))
+  (princ (strcat "\n  תיבה חוסמת: " (rtos (/ (- (caddr bb) (car bb)) scl) 2 1)
+                 " x " (rtos (/ (- (cadddr bb) (cadr bb)) scl) 2 1) " ס\"מ"))
+  (princ (strcat "\n  שטח נטו   : "
+                 (rtos (/ (abs (mg:sarea wpts)) (* 10000.0 scl scl)) 2 2) " מ\"ר"))
+
+  ;; עוביי קירות — קרן מול בלוק הגזירה, שרואה גם לתוך בלוקים
+  (setq th nil)
+  (setq ss (ssget "_X" (list '(0 . "INSERT") (cons 2 (strcat *MG-PREFIX* "CUT*")))))
+  (if ss
+    (progn
+      (princ "\nמודד עוביי קירות...")
+      (setq obj (vlax-ename->vla-object (ssname ss 0)))
+      (setq n (length wpts) i 0 th '())
+      (while (< i n)
+        (setq p (nth i wpts) q (nth (rem (1+ i) n) wpts))
+        (setq mid (list (/ (+ (car p) (car q)) 2.0) (/ (+ (cadr p) (cadr q)) 2.0)))
+        (setq dir (vnorm (list (- (car q) (car p)) (- (cadr q) (cadr p)))))
+        (setq nrm (list (cadr dir) (- (car dir))))          ; החוצה
+        (setq d (mg:raycast mid nrm (* 80.0 scl) obj))
+        (setq th (cons (if d d 0.0) th))
+        (setq i (1+ i)))
+      (setq th (reverse th))
+      (setq i 0 a "")
+      (foreach x th
+        (setq a (strcat a (if (= i 0) "" " / ")
+                        (if (> x 0.0) (rtos (/ x scl) 2 1) "?")))
+        (setq i (1+ i)))
+      (princ (strcat "\n  עוביים לפי צלע: " a))))
+
+  (setq id (getstring T "\nשם המרחב <ממ\"ד>: "))
+  (if (= id "") (setq id "\U+05DE\U+05DE\"\U+05D3"))
+  (setq H (mg:getreal-def "גובה פנים נטו (ס\"מ)" 250.0))
+
+  ;; המידות מוצגות בערך אמיתי למרות שהגאומטריה מוגדלת
+  (mg:setup 50.0)
+  (setvar "DIMLFAC" (/ 1.0 scl))
+  (mg:dimpoly wpts scl id H th)
+
+  (mapcar '(lambda (x y) (vl-catch-all-apply 'setvar (list x y))) sv vals)
+  (princ "\n=== מידות, שטח ונפח נוספו לגזירה. ===")
+  (princ))
+
+;;; ---------- ניקוי קו פנים שהתקבל מ-BOUNDARY ----------
+;;; קווי אדריכל מלאים בקפיצות של סנטימטר: מזוזות, טיח, פינות שבורות.
+;;; בלי ניקוי מתקבל פוליגון בן עשרות צלעות ולכל אחת מהן מידה — בלתי
+;;; קריא לחלוטין. שתי מחיקות: קטע קצר מדי, וקודקוד שכמעט על קו ישר.
+(defun mg:simplify (pts mind angtol / n i p q r out changed a1 a2 da ctr sx sy)
+  (setq changed T)
+  (while changed
+    (setq changed nil n (length pts))
+    ;; מרכז מסה משוער — משמש להכרעה איזה קודקוד לשמור
+    (setq sx 0.0 sy 0.0)
+    (foreach p pts (setq sx (+ sx (car p)) sy (+ sy (cadr p))))
+    (setq ctr (list (/ sx n) (/ sy n)))
+    ;; קטעים קצרים: מוחקים קודקוד אחד מהשניים.
+    ;; **שומרים את הקרוב למרכז** — כלומר במקרה של ספק המרחב יוצא
+    ;; קטן במעט ולא גדול במעט. בכלי מיגון זה הכיוון הבטוח: עדיף
+    ;; לדווח שטח מוגן חסר מאשר עודף מול הרשות המוסמכת.
+    (setq out '() i 0)
+    (while (< i n)
+      (setq p (nth i pts) q (nth (rem (1+ i) n) pts))
+      (if (< (distance p q) mind)
+        (progn
+          (setq changed T)
+          (if (< (distance p ctr) (distance q ctr))
+            (setq out (cons p out))))         ; p קרוב יותר — הוא שנשאר
+        (setq out (cons p out)))
+      (setq i (1+ i)))
+    (setq pts (reverse out) n (length pts))
+    (if (< n 3) (setq changed nil))
+    ;; קודקודים כמעט-ישרים
+    (if (>= n 3)
+      (progn
+        (setq out '() i 0)
+        (while (< i n)
+          (setq p (nth (rem (+ i (1- n)) n) pts)
+                q (nth i pts)
+                r (nth (rem (1+ i) n) pts))
+          (setq a1 (atan (- (cadr q) (cadr p)) (- (car q) (car p))))
+          (setq a2 (atan (- (cadr r) (cadr q)) (- (car r) (car q))))
+          (setq da (abs (- a2 a1)))
+          (if (> da pi) (setq da (- (* 2 pi) da)))
+          (if (< da angtol)
+            (setq changed T)
+            (setq out (cons q out)))
+          (setq i (1+ i)))
+        (setq pts (reverse out)))))
+  pts)
+
+;;; מידה משוכה — עובדת גם על צלע נטויה, לא רק אופקית/אנכית
+(defun mg:dimal (p1 p2 pd)
+  (setvar "CLAYER" (mg:lay "DIM"))
+  (vl-catch-all-apply 'vl-cmdf (list "_.DIMALIGNED" p1 p2 pd)))
+
+;;; זריקת קרן מול ישות אחת (בדרך כלל בלוק הגזירה) — IntersectWith
+;;; רואה גם תוכן מקונן, בניגוד ל-ssget. מחזירה מרחק או nil.
+(defun mg:raycast (p dir maxd obj / q e r lst i best d x)
+  (setq q (list (+ (car p) (* (car dir) maxd)) (+ (cadr p) (* (cadr dir) maxd))))
+  (entmake (list '(0 . "LINE") '(100 . "AcDbEntity") (cons 8 "0")
+                 '(100 . "AcDbLine")
+                 (cons 10 (list (car p) (cadr p) 0.0))
+                 (cons 11 (list (car q) (cadr q) 0.0))))
+  (setq e (entlast))
+  (setq r (vl-catch-all-apply 'vlax-invoke
+            (list (vlax-ename->vla-object e) 'IntersectWith obj 0)))
+  (entdel e)
+  (if (or (vl-catch-all-error-p r) (null r))
+    nil
+    (progn
+      (setq lst r best nil)
+      (while (>= (length lst) 3)
+        (setq x (list (car lst) (cadr lst)))
+        (setq d (distance p x))
+        (if (and (> d 0.5) (or (null best) (< d best))) (setq best d))
+        (setq lst (cdddr lst)))
+      best)))
 
 ;;; ==================================================================
 ;;;  MMDCUT — תחום מסביב לממ"ד, והכלי גוזר אותו אל הנספח
@@ -1201,7 +1401,7 @@
 ;;;  הבעיה היא בקידוד ולא בכלי.
 ;;; ==================================================================
 (defun c:MMDTEST ( / *error* sv vals saved n0 n1 ok units fp r1
-                     rL lpts c opts obb ew eh)
+                     rL lpts c opts obb ew eh dirty clean ar)
   (setq sv (mg:sysvars) vals (mapcar 'getvar sv))
   (defun *error* (m)
     (mapcar '(lambda (n v) (vl-catch-all-apply 'setvar (list n v))) sv vals)
@@ -1318,6 +1518,30 @@
                           (rtos (- (caddr obb) (car obb)) 2 2) " x "
                           (rtos (- (cadddr obb) (cadr obb)) 2 2)
                           " expected " (rtos ew 2 2) " x " (rtos eh 2 2)))))
+  ;; ---- ניקוי קו פנים ----
+  ;; אותה צורת ר', אבל "מלוכלכת" כמו שקו אדריכל מגיע מ-BOUNDARY:
+  ;; קודקוד מיותר באמצע צלע ישרה, קפיצה של 2 ס"מ, ועוד קודקוד על קו.
+  ;; אחרי הניקוי חייבות להישאר בדיוק 6 צלעות, ושטח זהה.
+  (setq dirty (list '(0.0 0.0) '(200.0 0.0) '(400.0 0.0) '(400.0 300.0)
+                    '(398.0 300.0) '(200.0 300.0) '(200.0 500.0)
+                    '(0.0 500.0) '(0.0 250.0)))
+  (setq clean (mg:simplify dirty 15.0 (/ (* 4.0 pi) 180.0)))
+  (if (= (length clean) 6)
+    (princ "\n  [ok]   simplify: 9 noisy vertices -> 6")
+    (progn (setq ok nil)
+           (princ (strcat "\n  [FAIL] simplify gave " (itoa (length clean))
+                          " vertices, expected 6"))))
+  ;; ניקוי משנה שטח במעט — זה בלתי נמנע. הדרישה: השינוי קטן מ-1%,
+  ;; **ותמיד כלפי מטה**. שטח מוגן עודף מול הרשות המוסמכת מסוכן יותר
+  ;; משטח חסר, ולכן זו לא רק שאלת דיוק אלא כיוון.
+  (setq ar (abs (mg:sarea clean)))
+  (if (and (<= ar 160000.0) (> ar (* 160000.0 0.99)))
+    (princ (strcat "\n  [ok]   simplify errs low and under 1% ("
+                   (rtos ar 2 0) " of 160000)"))
+    (progn (setq ok nil)
+           (princ (strcat "\n  [FAIL] area after simplify " (rtos ar 2 1)
+                          " — must be <=160000 and within 1%"))))
+
   ;; ופוליגון קעור: בצורת ר' התיבה החיצונית מתרחבת בעובי הצלעות הקיצוניות
   (setq opts (mg:outer (car (mg:poly rL)) (cadr (mg:poly rL))))
   (if (= (length opts) 6)
