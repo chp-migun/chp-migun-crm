@@ -4,8 +4,21 @@
 1. שמור את `migun.lsp` בתיקייה קבועה (למשל `C:\migun\`).
 2. פתח את `migun-lib.dxf` באוטוקאד ושמור אותו כ-`migun-lib.dwg` באותה תיקייה
    (הקובץ נבנה מספריית הבלוקים של המשרד — פרטי פתחים, חתכים, סימוני זיון).
-3. באוטוקאד: `APPLOAD` → בחר את `migun.lsp` → Load.
+3. **הוסף את התיקייה ל-Trusted Paths**: `OPTIONS` → לשונית `Files` →
+   `Trusted Locations` → `Add...` → הוסף את התיקייה שבחרת בשלב 1.
+   בלי זה `APPLOAD` יעבוד רק בהנחה שיאשרו ידנית "Load Once", ו-headless
+   דרך `accoreconsole` ייכשל עם `File load canceled` (`SECURELOAD`).
+4. באוטוקאד: `APPLOAD` → בחר את `migun.lsp` → Load.
    כדי שייטען אוטומטית בכל פתיחה: הוסף אותו ל-Startup Suite באותו חלון.
+
+### בדיקה headless דרך accoreconsole (אופציונלי, לפיתוח)
+`test-mmdtest.scr` בתיקייה זו טוען את migun.lsp ומריץ MMDTEST בלי GUI:
+```powershell
+& 'C:\Program Files\Autodesk\AutoCAD 2021\accoreconsole.exe' `
+    /s test-mmdtest.scr /l en-US
+```
+בסקריפט יש `(setvar "SECURELOAD" 0)` כרשת ביטחון במקרה שהתיקייה עוד
+לא ב-Trusted Paths.
 
 ## עבודה שוטפת
 | פקודה | מה היא עושה |

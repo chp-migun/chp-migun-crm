@@ -46,7 +46,7 @@
   (if (not (tblsearch "LTYPE" nm))
     (foreach f '("acadiso.lin" "acad.lin")
       (if (not (tblsearch "LTYPE" nm))
-        (vl-catch-all-apply 'command (list "_.-LINETYPE" "_Load" nm f "")))))
+        (vl-catch-all-apply 'vl-cmdf (list "_.-LINETYPE" "_Load" nm f "")))))
   (if (tblsearch "LTYPE" nm) nm "Continuous"))
 
 (defun mg:style ( / nm)
@@ -110,7 +110,7 @@
 ;;; מידה ליניארית אמיתית
 (defun mg:dim (h? p1 p2 pd)
   (setvar "CLAYER" (mg:lay "DIM"))
-  (vl-catch-all-apply 'command
+  (vl-catch-all-apply 'vl-cmdf
     (list "_.DIMLINEAR" p1 p2 (if h? "_H" "_V") pd)))
 
 ;;; וקטורים
@@ -373,7 +373,7 @@
      (princ "\nספריית הבלוקים כבר טעונה בשרטוט."))
     (T
      (setq e0 (entlast))
-     (vl-catch-all-apply 'command (list "_.-INSERT" p '(0 0 0) 1 1 0))
+     (vl-catch-all-apply 'vl-cmdf (list "_.-INSERT" p '(0 0 0) 1 1 0))
      ;; מחיקת ההוספה עצמה — ההגדרות המקוננות נשארות בטבלת הבלוקים
      (if (not (eq e0 (entlast))) (entdel (entlast)))
      (princ "\nהספרייה נטענה — הבלוקים זמינים כעת בשרטוט.")))
@@ -795,7 +795,7 @@
   (setq *MMD-LIST* saved)
   (mapcar '(lambda (n v) (vl-catch-all-apply 'setvar (list n v))) sv vals)
 
-  (vl-catch-all-apply 'command (list "_.ZOOM" "_E"))
+  (vl-catch-all-apply 'vl-cmdf (list "_.ZOOM" "_E"))
 
   (princ "\n------------------------------------------------------------")
   (if ok

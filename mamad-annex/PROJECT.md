@@ -57,6 +57,31 @@ migun.lsp הורץ מקצה-לקצה במיני-מפרש AutoLISP (בפייתו�
 לפני שהגיע אליך: ב-AutoLISP אין הבחנה בין W ל-w, ורוחב החדר נדרס על ידי
 רוחב הפתח — תוקן (opw).
 
+בנוסף — MMDTEST רץ headless דרך `accoreconsole.exe` (AutoCAD 2021) עם
+`lisp/test-mmdtest.scr`, מדפיס `RESULT: PASS`, ומפיק 226 LINE + 32
+LWPOLYLINE + 33 TEXT + 7 DIMENSION + 1 ARC + 1 CIRCLE על ה-fixture הדו-ממ"די.
+זהו טסט על אוטוקאד האמיתי (לא מפרש) — יתפוס באגים שהמפרש בפייתון
+מפספס: DXF שגוי ב-entmake, פקודות שלא רצו בפועל, הבחנת int/real.
+
+## לקחים ומלכודות
+- **`command` הוא special form, לא ניתן ל-`vl-catch-all-apply`.** הקריאה
+  `(vl-catch-all-apply 'command (list ...))` נופלת עם `bad order function:
+  COMMAND`. הפתרון: `'vl-cmdf` במקום `'command` (זהה סמנטית כשכל
+  הארגומנטים מפורשים; דרוש `vl-load-com` שכבר בראש הקובץ). זה הבאג
+  שהפיל את MMDTEST באוטוקאד אמיתי אחרי שעבר במפרש של חיים; ארבעה
+  מופעים תוקנו ב-mg:lt / mg:dim / c:MMDLIB / c:MMDTEST.
+- **`SECURELOAD` חוסם `(load ...)` מתיקיות שלא ב-Trusted Paths.** ב-headless
+  מוסיפים `(setvar "SECURELOAD" 0)` בתחילת הסקריפט; בהתקנה רגילה
+  מוסיפים את התיקייה ל-`OPTIONS > Files > Trusted Locations` (ראה
+  `lisp/README.md`).
+- **פלט accoreconsole הוא UTF-16 עם null-bytes.** לסינון בקונסולה,
+  מוסיפים אחרי הקריאה ל-accoreconsole:
+  ```powershell
+  | ForEach-Object { $_ -replace "`0","" }
+  ```
+  עברית שנשלחת ב-cp1255 להודעות תופיע משובשת בקונסולה — זה תצוגה בלבד,
+  הישויות ב-DWG נכונות כי migun משתמש ב-`\U+` escapes.
+
 ## הצעדים הבאים
 1. המשתמש יבדוק את migun.lsp על פרויקט אמיתי → פידבק
 2. מילוי אוטומטי של ATTDEF בפרטים מתוך המדידה

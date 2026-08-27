@@ -1,0 +1,7 @@
+(setvar "SECURELOAD" 0)
+(setvar "CMDECHO" 0)
+(load "C:/migun/repo/mamad-annex/lisp/migun.lsp")
+(princ "\n---BEGIN-MMDTEST---\n")
+(c:MMDTEST)
+(princ "\n---END-MMDTEST---\n")
+(command "_.QUIT" "_Y")
