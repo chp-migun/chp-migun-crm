@@ -18,10 +18,10 @@
 (vl-load-com)
 
 ;;; ---------- הגדרות ----------
-;;; חותמת בנייה — build_lsp.py מחליף את 6ab8ea96 בחתימה של migun.lsp.src.
+;;; חותמת בנייה — build_lsp.py מחליף את 9bc10ae9 בחתימה של migun.lsp.src.
 ;;; אותו מקור ? אותה חותמת (אין "רעש" בגיט). אם MMDTEST מדפיס חותמת
 ;;; שונה מזו שבמקור — אוטוקאד טען קובץ ישן.
-(setq *MG-BUILD* "6ab8ea96")
+(setq *MG-BUILD* "9bc10ae9")
 (setq *MG-PREFIX* "MIGUN-")
 (setq *MG-FONT*   "arial.ttf")
 (setq *MG-UNITS*  1.0)   ; 1.0 = השרטוט בס"מ ; 0.01 = השרטוט במטרים ; 10.0 = מ"מ
@@ -43,6 +43,9 @@
 ;;; לזכור פי כמה הוכפל מה. הפרמטר נשאר ניתן לשינוי בפקודה למקרה
 ;;; שבכל זאת יידרש פרט בהגדלה.
 (setq *MG-CUTSCALE* 1.0)
+
+;;; גזירות שנעשו בסשן: (שם-בלוק פוליגון-בקואורדינטות-הנספח הגדלה)
+(if (null *MG-CUTS*) (setq *MG-CUTS* '()))
 
 ;;; ---------- עזרי בסיס ----------
 (defun mg:lay (nm / e) (strcat *MG-PREFIX* nm))
@@ -455,19 +458,41 @@
   (foreach x d (if (= (car x) 10) (setq pts (cons (mg:2d (cdr x)) pts))))
   (reverse pts))
 
-;;; קו פנים של החדר שבו נמצאת הנקודה. מחזיר רשימת נקודות עולמית, או nil.
-;;; ה-BOUNDARY שנוצר נמחק — אנחנו רק קוראים ממנו.
-(defun mg:bpoly (pt / e0 e pts gt)
-  (setq e0 (entlast))
-  (setq gt (getvar "HPGAPTOL"))
-  ;; קווי אדריכל לא תמיד נפגשים בדיוק; בלי סובלנות ה-BOUNDARY נכשל
-  (vl-catch-all-apply 'setvar (list "HPGAPTOL" 10.0))
+;;; ניסיון תיחקות בודד בסובלנות פערים נתונה
+(defun mg:btry (pt tol / e0 e pts gt)
+  (setq e0 (entlast) gt (getvar "HPGAPTOL"))
+  (vl-catch-all-apply 'setvar (list "HPGAPTOL" tol))
   (vl-catch-all-apply 'vl-cmdf (list "_.-BOUNDARY" pt ""))
   (vl-catch-all-apply 'setvar (list "HPGAPTOL" gt))
   (setq e (entlast))
   (if (and e (not (eq e e0)) (= (cdr (assoc 0 (entget e))) "LWPOLYLINE"))
     (progn (setq pts (mg:plpts e)) (entdel e) pts)
     nil))
+
+;;; קו פנים של החדר שבו נמצאת הנקודה, בקואורדינטות עולם.
+;;; מנסה סובלנות פערים הולכת וגדלה: קווי אדריכל לא תמיד נפגשים,
+;;; ובעיקר — פתח דלת משאיר פרצה של 80–100 ס"מ שסוגרת את הדרך.
+;;; אחרי כל ניסיון נבדקת סבירות: מרחב מוגן אינו גדול מ-20 מ' לצלע
+;;; ואינו קטן מ-1 מ'. תוצאה לא סבירה נדחית — עדיף כישלון גלוי
+;;; מאשר לתחקות בטעות את כל הדירה ולדווח עליה כעל ממ"ד.
+(defun mg:bpoly (pt / tols pts bb w h res used)
+  (setq tols '(5.0 30.0 70.0 110.0 160.0) res nil)
+  (foreach tol tols
+    (if (null res)
+      (progn
+        (setq pts (mg:btry pt tol))
+        (if (and pts (> (length pts) 2))
+          (progn
+            (setq bb (mg:bbox pts))
+            (setq w (- (caddr bb) (car bb)) h (- (cadddr bb) (cadr bb)))
+            (if (and (> w 100.0) (> h 100.0) (< w 2000.0) (< h 2000.0))
+              (setq res pts used tol)
+              (princ (strcat "\n  (סובלנות " (rtos tol 2 0) ": התקבל "
+                             (rtos w 2 0) "x" (rtos h 2 0)
+                             " — לא סביר, ממשיך)"))))))))
+  (if res (princ (strcat "\n  קו פנים נסגר בסובלנות פערים "
+                         (rtos used 2 0) " ס\"מ")))
+  res)
 
 ;;; זריקת קרן מנקודה בכיוון dir; מחזירה את המרחק למכשול הקרוב ביותר
 ;;; מבין הישויות ב-ss, או nil. כך נמדד עובי הקיר בלי לשאול את המשתמש.
@@ -654,25 +679,49 @@
   (mg:mklayers) (mg:style)
   (setvar "CMDECHO" 0)
 
-  (setq pt (getpoint "\nלחץ בתוך המרחב המוגן שבגזירה: "))
-  (if (null pt) (exit))
-  (setq pt (mg:2d pt))
+  ;; שלושה מקורות לקו הפנים, לפי סדר אמינות יורד:
+  ;;   1. מה ש-MMDCUT כבר תיחקה בתוכנית המקורית ושמר
+  ;;   2. תיחקות ישירה כאן (עובדת רק אם אין בלוק גזור)
+  ;;   3. סימון הפינות ידנית
+  (setq scl *MG-CUTSCALE* wpts nil)
+  (if *MG-CUTS*
+    (progn
+      (princ (strcat "\nיש " (itoa (length *MG-CUTS*))
+                     " גזירות שמורות מהסשן."))
+      (setq pt (getpoint "\nלחץ בתוך המרחב שבגזירה (Enter = הגזירה האחרונה): "))
+      (if pt
+        (progn
+          (setq pt (mg:2d pt))
+          (foreach c *MG-CUTS*
+            (if (and (null wpts) (mg:inpoly pt (cadr c)))
+              (setq wpts (cadr c) scl (caddr c)))))
+        (progn (setq wpts (cadr (car *MG-CUTS*)) scl (caddr (car *MG-CUTS*)))))
+      (if wpts (princ (strcat "\n  נמצא קו שמור: " (itoa (length wpts))
+                              " צלעות")))))
 
-  (princ "\nמתחקה את קו הפנים...")
-  (setq wpts (mg:bpoly pt))
   (if (null wpts)
     (progn
-      (princ "\n!! לא הצלחתי לסגור קו פנים סביב הנקודה.")
-      (princ "\n   הסיבה הרגילה: פתח דלת שמשאיר פרצה בקירות, או שהחדר")
-      (princ "\n   לא כולו על המסך. תקרב לגזירה ונסה שוב.")
-      (exit)))
-  (princ (strcat "\n  קו גולמי: " (itoa (length wpts)) " צלעות"))
+      (setq pt (getpoint "\nלחץ בתוך המרחב המוגן: "))
+      (if (null pt) (exit))
+      (setq pt (mg:2d pt))
+      (princ "\nמתחקה את קו הפנים...")
+      (setq wpts (mg:bpoly pt))
+      (if wpts
+        (progn
+          (setq scl (mg:getreal-def "הגדלה של הגזירה" *MG-CUTSCALE*))
+          (setq wpts (mg:simplify wpts (* 15.0 scl) (/ (* 4.0 pi) 180.0)))
+          (setq wpts (car (mg:ccw wpts nil)))
+          (princ (strcat "\n  אחרי ניקוי: " (itoa (length wpts)) " צלעות")))
+        (progn
+          (princ "\n!! לא נסגר קו פנים אוטומטית.")
+          (princ "\n   קורה כשהגזירה היא בלוק גזור (XCLIP) — ‎BOUNDARY")
+          (princ "\n   לא מתחקה לתוכו — או כשפתח דלת משאיר פרצה גדולה.")
+          (princ "\n   סמן את פינות הפנים בקליקים, Enter לסיום:")
+          (setq wpts (mg:pickpoly))
+          (if (and wpts (> (length wpts) 2))
+            (setq wpts (car (mg:ccw wpts nil)))
+            (progn (princ "\n!! פחות משלוש פינות.") (exit)))))))
 
-  (setq scl (mg:getreal-def "הגדלה של הגזירה" *MG-CUTSCALE*))
-  ;; ניקוי: קטע קצר מ-15 ס"מ אמיתיים, וזווית עד 4 מעלות
-  (setq wpts (mg:simplify wpts (* 15.0 scl) (/ (* 4.0 pi) 180.0)))
-  (setq wpts (car (mg:ccw wpts nil)))
-  (princ (strcat "\n  אחרי ניקוי: " (itoa (length wpts)) " צלעות"))
   (if (< (length wpts) 3)
     (progn (princ "\n!! לא נשארו מספיק צלעות.") (exit)))
 
@@ -766,6 +815,29 @@
         (setq pts (reverse out)))))
   pts)
 
+;;; האם נקודה בתוך פוליגון — ray casting, לזיהוי לאיזו גזירה לחצת
+(defun mg:inpoly (pt pts / n i p q c x)
+  (setq n (length pts) i 0 c nil)
+  (while (< i n)
+    (setq p (nth i pts) q (nth (rem (1+ i) n) pts))
+    (if (and (/= (> (cadr p) (cadr pt)) (> (cadr q) (cadr pt)))
+             (< (car pt)
+                (+ (car p) (* (- (car q) (car p))
+                              (/ (- (cadr pt) (cadr p))
+                                 (- (cadr q) (cadr p)))))))
+      (setq c (not c)))
+    (setq i (1+ i)))
+  c)
+
+;;; סימון פינות ידני — מוצא אחרון כשהתיחקות לא מצליחה
+(defun mg:pickpoly ( / pts p n osm)
+  (setq pts '() n 1 osm (getvar "OSMODE"))
+  (setvar "OSMODE" 33)                     ; הצמדה לפינות ולחיתוכים
+  (while (setq p (getpoint (strcat "\n  פינה " (itoa n) " (Enter לסיום): ")))
+    (setq pts (cons (mg:2d p) pts) n (1+ n)))
+  (setvar "OSMODE" osm)
+  (reverse pts))
+
 ;;; מידה משוכה — עובדת גם על צלע נטויה, לא רק אופקית/אנכית
 (defun mg:dimal (p1 p2 pd)
   (setvar "CLAYER" (mg:lay "DIM"))
@@ -797,7 +869,8 @@
 ;;; ==================================================================
 ;;;  MMDCUT — תחום מסביב לממ"ד, והכלי גוזר אותו אל הנספח
 ;;; ==================================================================
-(defun c:MMDCUT ( / *error* sv vals p1 p2 target scl osm res)
+(defun c:MMDCUT ( / *error* sv vals p1 p2 target scl osm res
+                    ipt wpts bb base apts)
   (setq sv (mg:sysvars) vals (mapcar 'getvar sv))
   (defun *error* (m)
     (mapcar '(lambda (a b) (vl-catch-all-apply 'setvar (list a b))) sv vals)
@@ -834,6 +907,42 @@
   (if (null target) (progn (setvar "OSMODE" osm) (exit)))
 
   (setq res (mg:cutwin p1 p2 (mg:2d target) scl nil))
+
+  ;; תיחקות קו הפנים נעשית **כאן, על התוכנית המקורית** — לא אחר כך על
+  ;; הגזירה. ‎-BOUNDARY אינו מתחקה לתוך בלוק גזור (XCLIP), ולכן ניסיון
+  ;; לתחקות את הגזירה נכשל. הפוליגון נשמר ומועבר למערכת הנספח.
+  (if res
+    (progn
+      (princ "\nעכשיו לחץ בתוך המרחב המוגן **בתוכנית המקורית**")
+      (princ "\n(זה מה שיאפשר מידות, שטח ונפח. Enter לדלג.)")
+      (setq ipt (getpoint "\n  נקודה בתוך המרחב: "))
+      (if ipt
+        (progn
+          (setq wpts (mg:bpoly (mg:2d ipt)))
+          (if wpts
+            (progn
+              (princ (strcat "\n  קו גולמי: " (itoa (length wpts)) " צלעות"))
+              (setq wpts (mg:simplify wpts 15.0 (/ (* 4.0 pi) 180.0)))
+              (setq wpts (car (mg:ccw wpts nil)))
+              (princ (strcat "\n  אחרי ניקוי: " (itoa (length wpts)) " צלעות"))
+              (setq bb (mg:bbox wpts))
+              (princ (strcat "\n  תיבה חוסמת: " (rtos (- (caddr bb) (car bb)) 2 1)
+                             " x " (rtos (- (cadddr bb) (cadr bb)) 2 1) " ס\"מ"))
+              (princ (strcat "\n  שטח נטו   : "
+                             (rtos (/ (abs (mg:sarea wpts)) 10000.0) 2 2) " מ\"ר"))
+              ;; שמירה בקואורדינטות הנספח
+              (setq base (list (/ (+ (car p1) (car p2)) 2.0)
+                               (/ (+ (cadr p1) (cadr p2)) 2.0)))
+              (setq apts (mapcar '(lambda (q) (mg:xf q base (mg:2d target) scl))
+                                 wpts))
+              (setq *MG-CUTS* (cons (list (cdr (assoc 2 (entget res)))
+                                          apts scl)
+                                    *MG-CUTS*))
+              (princ "\n  נשמר. MMDDIM יוסיף מידות, שטח ונפח."))
+            (progn
+              (princ "\n  !! לא נסגר קו פנים. הגזירה עצמה תקינה —")
+              (princ "\n     תוכל להריץ MMDDIM ולסמן את הפינות ידנית.")))))))
+
   (setvar "OSMODE" osm)
   (mapcar '(lambda (a b) (vl-catch-all-apply 'setvar (list a b))) sv vals)
   (if res
@@ -1518,6 +1627,14 @@
                           (rtos (- (caddr obb) (car obb)) 2 2) " x "
                           (rtos (- (cadddr obb) (cadr obb)) 2 2)
                           " expected " (rtos ew 2 2) " x " (rtos eh 2 2)))))
+  ;; ---- נקודה בתוך פוליגון ----
+  (if (and (mg:inpoly '(200.0 100.0) lpts)          ; בתוך הזרוע התחתונה
+           (mg:inpoly '(100.0 400.0) lpts)          ; בתוך הזרוע השמאלית
+           (not (mg:inpoly '(350.0 400.0) lpts))    ; בחלל שמחוץ ל-ר'
+           (not (mg:inpoly '(500.0 100.0) lpts)))   ; מחוץ לגמרי
+    (princ "\n  [ok]   point-in-polygon incl. the concave notch")
+    (progn (setq ok nil) (princ "\n  [FAIL] mg:inpoly")))
+
   ;; ---- ניקוי קו פנים ----
   ;; אותה צורת ר', אבל "מלוכלכת" כמו שקו אדריכל מגיע מ-BOUNDARY:
   ;; קודקוד מיותר באמצע צלע ישרה, קפיצה של 2 ס"מ, ועוד קודקוד על קו.
