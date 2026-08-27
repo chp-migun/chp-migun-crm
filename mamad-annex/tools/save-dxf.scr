@@ -1,0 +1,4 @@
+(setvar "CMDECHO" 0)
+(setvar "FILEDIA" 0)
+(command "_.SAVEAS" "_DXF" "16" "C:/migun/tmp/demo.dxf")
+(command "_.QUIT" "_Y")
