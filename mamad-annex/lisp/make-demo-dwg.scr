@@ -1,0 +1,8 @@
+(setvar "SECURELOAD" 0)
+(setvar "CMDECHO" 0)
+(setvar "FILEDIA" 0)
+(load "C:/migun/repo/mamad-annex/lisp/migun.lsp")
+(c:MMDTEST)
+(command "_.ZOOM" "_E")
+(command "_.SAVEAS" "" "C:/migun/out/mamad-annex-demo.dwg")
+(command "_.QUIT" "_Y")

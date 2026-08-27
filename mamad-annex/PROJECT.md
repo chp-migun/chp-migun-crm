@@ -22,6 +22,8 @@ mamad-annex/
 │   ├── build_lsp.py      ← ממיר: \U+ לישויות, cp1255 להודעות, בדיקת סוגריים
 │   ├── migun.lsp         ← התוצר לטעינה באוטוקאד (APPLOAD)
 │   ├── migun-lib.dxf     ← 44 בלוקים של המשרד + תלויות (לשמור פעם אחת כ-DWG)
+│   ├── test-mmdtest.scr  ← בדיקת עשן headless (MMDTEST → RESULT: PASS)
+│   ├── make-demo-dwg.scr ← מייצר DWG הדגמה לתיקיית out
 │   └── README.md         ← הוראות התקנה ושימוש
 ├── index.html            ← כלי טופס+תצוגה מקדימה+יצירת LSP חד-פעמי (שלב א')
 ├── RULES.md              ← כל הכללים עם מקורות
@@ -74,6 +76,15 @@ LWPOLYLINE + 33 TEXT + 7 DIMENSION + 1 ARC + 1 CIRCLE על ה-fixture הדו-מ�
   מוסיפים `(setvar "SECURELOAD" 0)` בתחילת הסקריפט; בהתקנה רגילה
   מוסיפים את התיקייה ל-`OPTIONS > Files > Trusted Locations` (ראה
   `lisp/README.md`).
+- **`accoreconsole /s` לא מקבל נתיב יחסי.** גם כשה-CWD הוא תיקיית
+  הסקריפט, הרצה עם `/s test-mmdtest.scr` נכשלת עם
+  `"test-mmdtest.scr": Can't find file.` וממשיכה עד הסוף בלי להריץ כלום —
+  כלומר **נראית כמו הצלחה שקטה**. תמיד נתיב מלא:
+  `/s C:\migun\repo\mamad-annex\lisp\test-mmdtest.scr`.
+- **`(command "_.QUIT" "_Y")` בסוף סקריפט מדפיס `; error: Function
+  cancelled`.** זה תקין — האפליקציה נסגרת באמצע הפקודה, לא סימן לכשל.
+- **`-PLOT` ל-PDF ב-accoreconsole 2021 נתקע** ברצף התשובות שניסינו
+  (תלוי גרסה/מדפסת). טרם נפתר — לא חוסם, ה-DWG נוצר כרגיל.
 - **פלט accoreconsole הוא UTF-16 עם null-bytes.** לסינון בקונסולה,
   מוסיפים אחרי הקריאה ל-accoreconsole:
   ```powershell

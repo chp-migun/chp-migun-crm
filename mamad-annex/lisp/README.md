@@ -15,10 +15,26 @@
 `test-mmdtest.scr` בתיקייה זו טוען את migun.lsp ומריץ MMDTEST בלי GUI:
 ```powershell
 & 'C:\Program Files\Autodesk\AutoCAD 2021\accoreconsole.exe' `
-    /s test-mmdtest.scr /l en-US
+    /s 'C:\migun\repo\mamad-annex\lisp\test-mmdtest.scr' /l en-US |
+    ForEach-Object { $_ -replace "`0","" }
 ```
+מחפשים בפלט את השורה `RESULT: PASS`.
+
+**שים לב — נתיב מלא ל-`/s`.** נתיב יחסי נכשל בשקט: accoreconsole מדפיס
+`"...scr": Can't find file.`, ממשיך לרוץ ויוצא בקוד הצלחה — כלומר נראה
+כאילו הכל עבר, בלי שהורץ ולו טסט אחד.
+
 בסקריפט יש `(setvar "SECURELOAD" 0)` כרשת ביטחון במקרה שהתיקייה עוד
-לא ב-Trusted Paths.
+לא ב-Trusted Paths. השורה `; error: Function cancelled` בסוף הריצה תקינה —
+היא מגיעה מ-`QUIT` שסוגר את האפליקציה באמצע הפקודה.
+
+### הפקת DWG הדגמה (בלי לפתוח אוטוקאד)
+```powershell
+& 'C:\Program Files\Autodesk\AutoCAD 2021\accoreconsole.exe' `
+    /s 'C:\migun\repo\mamad-annex\lisp\make-demo-dwg.scr' /l en-US
+```
+מייצר `C:\migun\out\mamad-annex-demo.dwg` — נספח הדגמה עם שני ממ"דים,
+חתכים, טבלה מרכזת והערות. לפתיחה רגילה באוטוקאד ובדיקה ויזואלית.
 
 ## עבודה שוטפת
 | פקודה | מה היא עושה |
